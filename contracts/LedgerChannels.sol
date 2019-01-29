@@ -165,7 +165,7 @@ contract LedgerChannels {
      * @notice generates a deterministic channel id for a channel between _A and
      *   _B, opening at _blocktime.
      *   Since we don't include a salt or other parameters, this has the side
-     *   effect that only one channel between two parties can be opene within a
+     *   effect that only one channel between two parties can be opened within a
      *   single block time
      */
     function genId(address _A, address _B, uint _blocktime) public pure returns (uint) {
