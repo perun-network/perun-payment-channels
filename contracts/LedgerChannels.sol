@@ -14,7 +14,14 @@ import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
  *   The channel initiator is sometimes referred to as A, the confirmer as B.
  */
 contract LedgerChannels {
-    enum State { Null, Opening, Open, ClosingByA, ClosingByB }
+    using SafeMath for uint256;
+
+    enum State { Null, Opening, Open, ClosingByA, ClosingByB, Closed }
+
+    struct Party {
+        address addr;
+        uint balance;
+    }
 
     /**
      * @dev LedgerChannel holds the state of a channel.
@@ -25,14 +32,13 @@ contract LedgerChannels {
         State state;
         uint48 timeout; // absolute timeout of pending confirmation for open or close
         uint48 timeoutDuration; // relative timeout
-        address A;
-        address B;
-        uint balanceA;
-        uint balanceB;
+        Party A;
+        Party B;
+        uint version;
     }
 
     /// @dev mapping from channel id to its state
-    mapping(uint => LedgerChannel) public channels;
+    mapping(uint => LedgerChannel) channels;
 
     event Opening(uint indexed _id, address indexed initiator, address indexed confirmer,
         uint balanceA);
@@ -51,7 +57,7 @@ contract LedgerChannels {
 
     modifier onlyParty(uint _id) {
         require(exists(_id), "Channel doesn't exist.");
-        require(channels[_id].A == msg.sender || channels[_id].B == msg.sender,
+        require(channels[_id].A.addr == msg.sender || channels[_id].B.addr == msg.sender,
             "Caller is not a party of this channel.");
         _;
     }
@@ -99,16 +105,16 @@ contract LedgerChannels {
      * @param _timeoutDuration duration of confirmations of channel opening
      *   and closing
      */
-    function open(address _other, uint _timeoutDuration) payable external returns (uint) {
+    function open(address _other, uint48 _timeoutDuration) payable external returns (uint) {
         uint id = genId(msg.sender, _other, now);
         require(!exists(id), "Channel already exists.");
 
-        LedgerChannel chan = channels[id];
-        chan.A = msg.sender;
-        chan.balanceA = msg.value;
-        chan.B = _other;
+        LedgerChannel storage chan = channels[id];
+        chan.A.addr = msg.sender;
+        chan.A.balance = msg.value;
+        chan.B.addr = _other;
         chan.timeoutDuration = _timeoutDuration;
-        chan.timeout = now + _timeoutDuration;
+        resetTimeout(chan);
         chan.state = State.Opening;
 
         return id;
@@ -117,48 +123,64 @@ contract LedgerChannels {
     function confirmOpen(uint _id) payable external
         onlyConfirmer(_id) inState(_id, State.Opening) withinTimeout(_id)
     {
-        LedgerChannel chan = channels[id];
-        chan.B = msg.sender;
-        chan.balanceB = msg.value;
+        LedgerChannel storage chan = channels[_id];
+        chan.B.balance = msg.value;
         chan.state = State.Open;
     }
 
     function timeoutOpen(uint _id) external
         onlyInitiator(_id) inState(_id, State.Opening) afterTimeout(_id)
     {
-        LedgerChannel chan = channels[id];
-        uint refundA = chan.balanceA;
-        chan.balanceA = 0;
-        chan.state = State.Null;
-        chan.A.transfer(refundA);
+        channels[_id].state = State.Closed;
+        withdraw(_id);
     }
 
     function close(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
         onlyParty(_id) inState(_id, State.Open)
     {
-        verifyBoth(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
-        // TODO
+        verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
+        update(_id, _version, _balanceA, _balanceB);
+
+        LedgerChannel storage chan = channels[_id];
+        resetTimeout(chan);
+        chan.state = (msg.sender == chan.A.addr) ? State.ClosingByA : State.ClosingByB;
     }
 
     function confirmClose(uint _id) external
         onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
     {
-        // TODO
+        channels[_id].state = State.Closed;
+        withdraw(_id);
     }
 
     function disputedClose(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
         onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
     {
-        verifyBoth(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
-        // TODO
+        verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
+        update(_id, _version, _balanceA, _balanceB);
+
+        channels[_id].state = State.Closed;
+        withdraw(_id);
     }
 
     function timeoutClose(uint _id) external
         onlyInitiator(_id) inStateClosing(_id) afterTimeout(_id)
     {
-        // TODO
+        channels[_id].state = State.Closed;
+        withdraw(_id);
+    }
+
+    function withdraw(uint _id) public onlyParty(_id) inState(_id, State.Closed) {
+        LedgerChannel storage chan = channels[_id];
+        Party storage party  = (msg.sender == chan.A.addr) ? chan.A : chan.B;
+        uint balance = party.balance;
+        party.balance = 0;
+        if (chan.A.balance == 0 && chan.B.balance == 0) {
+            chan.state = State.Null;
+        }
+        msg.sender.transfer(balance); // party.addr is not payable
     }
 
     /**
@@ -178,23 +200,40 @@ contract LedgerChannels {
 
     function initiator(uint _id) public view returns (address) {
         LedgerChannel storage chan = channels[_id];
-        return (chan.state == State.ClosingByB) ?  chan.B : chan.A;
+        return (chan.state == State.ClosingByB) ?  chan.B.addr : chan.A.addr;
     }
 
     function confirmer(uint _id) public view returns (address) {
         LedgerChannel storage chan = channels[_id];
-        return !(chan.state == State.ClosingByB) ?  chan.B : chan.A;
+        return (chan.state == State.ClosingByB) ?  chan.A.addr : chan.B.addr;
     }
 
-    function verifyBoth(uint _id, uint _version, uint _balanceA, uint _balanceB,
+    function resetTimeout(LedgerChannel storage chan) internal {
+        chan.timeout = uint48(now) + chan.timeoutDuration;
+        // SafeMath is only implemented for uint256 and would be inefficient here
+        require(chan.timeout > uint48(now), "Bogus timeout duration.");
+    }
+
+    function verifySigs(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes memory _sigA, bytes memory _sigB) internal view
     {
         LedgerChannel storage chan = channels[_id];
         bytes32 hash = ethSignedMsgHash(_id, _version, _balanceA, _balanceB);
-        require(ECDSA.recover(hash, _sigA) == chan.A,
+        require(ECDSA.recover(hash, _sigA) == chan.A.addr,
                 "Signature verification of channel update failed for A.");
-        require(ECDSA.recover(hash, _sigB) == chan.B,
+        require(ECDSA.recover(hash, _sigB) == chan.B.addr,
                 "Signature verification of channel update failed for B.");
+    }
+
+    function update(uint _id, uint _version, uint _balanceA, uint _balanceB) internal {
+        LedgerChannel storage chan = channels[_id];
+        require(chan.version < _version, "Update version is not greater than current.");
+        require(_balanceA.add(_balanceB) <= chan.A.balance.add(chan.B.balance),
+            "Update total balance greater than current balance.");
+
+        chan.version = _version;
+        chan.A.balance = _balanceA;
+        chan.B.balance = _balanceB;
     }
 
     /**
