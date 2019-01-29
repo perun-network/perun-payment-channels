@@ -88,7 +88,7 @@ contract LedgerChannels {
     }
 
     modifier afterTimeout(uint _id) {
-        require(channels[_id].timeout > now, "Confirmation timeout not reached yet.");
+        require(channels[_id].timeout < now, "Confirmation timeout not reached yet.");
         _;
     }
 
@@ -102,20 +102,35 @@ contract LedgerChannels {
     function open(address _other, uint _timeoutDuration) payable external returns (uint) {
         uint id = genId(msg.sender, _other, now);
         require(!exists(id), "Channel already exists.");
-        // TODO
+
+        LedgerChannel chan = channels[id];
+        chan.A = msg.sender;
+        chan.balanceA = msg.value;
+        chan.B = _other;
+        chan.timeoutDuration = _timeoutDuration;
+        chan.timeout = now + _timeoutDuration;
+        chan.state = State.Opening;
+
         return id;
     }
 
     function confirmOpen(uint _id) payable external
         onlyConfirmer(_id) inState(_id, State.Opening) withinTimeout(_id)
     {
-        // TODO
+        LedgerChannel chan = channels[id];
+        chan.B = msg.sender;
+        chan.balanceB = msg.value;
+        chan.state = State.Open;
     }
 
     function timeoutOpen(uint _id) external
         onlyInitiator(_id) inState(_id, State.Opening) afterTimeout(_id)
     {
-        // TODO
+        LedgerChannel chan = channels[id];
+        uint refundA = chan.balanceA;
+        chan.balanceA = 0;
+        chan.state = State.Null;
+        chan.A.transfer(refundA);
     }
 
     function close(uint _id, uint _version, uint _balanceA, uint _balanceB,
