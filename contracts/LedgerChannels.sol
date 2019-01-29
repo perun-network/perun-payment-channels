@@ -54,6 +54,7 @@ contract LedgerChannels {
         uint finalBalanceA, uint finalBalanceB);
     event ClosedDisputed(uint indexed _id, address indexed closer, address indexed confimer,
         uint finalBalanceA, uint finalBalanceB);
+    event Withdrawal(uint indexed _id, address indexed by, uint balance);
 
     modifier onlyParty(uint _id) {
         require(exists(_id), "Channel doesn't exist.");
@@ -101,21 +102,22 @@ contract LedgerChannels {
     /**
      * @notice opens request to open a payment channel by the sender of the tx.
      *   Sent ether is blocked in the opening channel as A's balance.
-     * @param _other The channel's other side, who needs to confirm the channel.
+     * @param _counterParty The channel's other side, who needs to confirm the channel.
      * @param _timeoutDuration duration of confirmations of channel opening
      *   and closing
      */
-    function open(address _other, uint48 _timeoutDuration) payable external returns (uint) {
-        uint id = genId(msg.sender, _other, now);
+    function open(address _counterParty, uint48 _timeoutDuration) payable external returns (uint) {
+        uint id = genId(msg.sender, _counterParty, now);
         require(!exists(id), "Channel already exists.");
 
         LedgerChannel storage chan = channels[id];
         chan.A.addr = msg.sender;
         chan.A.balance = msg.value;
-        chan.B.addr = _other;
+        chan.B.addr = _counterParty;
         chan.timeoutDuration = _timeoutDuration;
         resetTimeout(chan);
         chan.state = State.Opening;
+        emit Opening(id, msg.sender, _counterParty, msg.value);
 
         return id;
     }
@@ -126,12 +128,15 @@ contract LedgerChannels {
         LedgerChannel storage chan = channels[_id];
         chan.B.balance = msg.value;
         chan.state = State.Open;
+        emit Open(_id, chan.A.addr, msg.sender, chan.A.balance, msg.value);
     }
 
     function timeoutOpen(uint _id) external
         onlyInitiator(_id) inState(_id, State.Opening) afterTimeout(_id)
     {
-        channels[_id].state = State.Closed;
+        LedgerChannel storage chan = channels[_id];
+        chan.state = State.Closed;
+        emit OpenTimeout(_id, msg.sender, chan.B.addr, chan.A.balance);
         withdraw(_id);
     }
 
@@ -145,12 +150,15 @@ contract LedgerChannels {
         LedgerChannel storage chan = channels[_id];
         resetTimeout(chan);
         chan.state = (msg.sender == chan.A.addr) ? State.ClosingByA : State.ClosingByB;
+        emit Closing(_id, msg.sender, confirmer(_id), chan.A.balance, chan.B.balance);
     }
 
     function confirmClose(uint _id) external
         onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
     {
-        channels[_id].state = State.Closed;
+        LedgerChannel storage chan = channels[_id];
+        chan.state = State.Closed;
+        emit Closed(_id, initiator(_id), msg.sender, chan.A.balance, chan.B.balance);
         withdraw(_id);
     }
 
@@ -161,14 +169,18 @@ contract LedgerChannels {
         verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         update(_id, _version, _balanceA, _balanceB);
 
-        channels[_id].state = State.Closed;
+        LedgerChannel storage chan = channels[_id];
+        chan.state = State.Closed;
+        emit ClosedDisputed(_id, initiator(_id), msg.sender, chan.A.balance, chan.B.balance);
         withdraw(_id);
     }
 
     function timeoutClose(uint _id) external
         onlyInitiator(_id) inStateClosing(_id) afterTimeout(_id)
     {
-        channels[_id].state = State.Closed;
+        LedgerChannel storage chan = channels[_id];
+        chan.state = State.Closed;
+        emit ClosedTimeout(_id, msg.sender, confirmer(_id), chan.A.balance, chan.B.balance);
         withdraw(_id);
     }
 
@@ -180,6 +192,7 @@ contract LedgerChannels {
         if (chan.A.balance == 0 && chan.B.balance == 0) {
             chan.state = State.Null;
         }
+        emit Withdrawal(_id, msg.sender, balance);
         msg.sender.transfer(balance); // party.addr is not payable
     }
 
