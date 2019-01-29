@@ -1,5 +1,4 @@
 pragma solidity ^0.5.2;
-pragma experimental ABIEncoderV2;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
@@ -28,16 +27,6 @@ contract LedgerChannels {
         uint48 timeoutDuration; // relative timeout
         address A;
         address B;
-        uint balanceA;
-        uint balanceB;
-    }
-
-    /**
-     * @dev ChannelUpdate only contains the data that changes on channel updates
-     *   the remaining data (A, B, id) is implicit from the context (_id)
-     */
-    struct ChannelUpdate {
-        uint version;
         uint balanceA;
         uint balanceB;
     }
@@ -129,11 +118,11 @@ contract LedgerChannels {
         // TODO
     }
 
-    function close(uint _id, ChannelUpdate calldata _update,
+    function close(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
         onlyParty(_id) inState(_id, State.Open)
     {
-        verifyBoth(_id, _update, _sigA, _sigB);
+        verifyBoth(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         // TODO
     }
 
@@ -143,11 +132,11 @@ contract LedgerChannels {
         // TODO
     }
 
-    function disputedClose(uint _id, ChannelUpdate calldata _update,
+    function disputedClose(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
         onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
     {
-        verifyBoth(_id, _update, _sigA, _sigB);
+        verifyBoth(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         // TODO
     }
 
@@ -182,14 +171,14 @@ contract LedgerChannels {
         return !(chan.state == State.ClosingByB) ?  chan.B : chan.A;
     }
 
-    function verifyBoth(uint _id, ChannelUpdate memory _update,
-        bytes memory _sigA, bytes memory _sigB) internal
+    function verifyBoth(uint _id, uint _version, uint _balanceA, uint _balanceB,
+        bytes memory _sigA, bytes memory _sigB) internal view
     {
         LedgerChannel storage chan = channels[_id];
-        bytes32 hash = ethSignedMsgHash(_id, _update);
-        require(verify(hash, _sigA, chan.A),
+        bytes32 hash = ethSignedMsgHash(_id, _version, _balanceA, _balanceB);
+        require(ECDSA.recover(hash, _sigA) == chan.A,
                 "Signature verification of channel update failed for A.");
-        require(verify(hash, _sigB, chan.B),
+        require(ECDSA.recover(hash, _sigB) == chan.B,
                 "Signature verification of channel update failed for B.");
     }
 
@@ -199,12 +188,12 @@ contract LedgerChannels {
      *   Note that the channel id already encodes the parties of the channel, so
      *   we don't need to add them to the message digest.
      */
-    function ethSignedMsgHash(uint _id, ChannelUpdate memory _update)
-        internal pure returns (bytes32)
+    function ethSignedMsgHash(uint _id, uint _version, uint _balanceA, uint _balanceB)
+        public pure returns (bytes32)
     {
         return ECDSA.toEthSignedMessageHash(
             keccak256(abi.encodePacked(
-                _id, _update.version, _update.balanceA, _update.balanceB)));
+                _id, _version, _balanceA, _balanceB)));
     }
 
     function verify(bytes32 _hash, bytes memory _sig, address _signer)
