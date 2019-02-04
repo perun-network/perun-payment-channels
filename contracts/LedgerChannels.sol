@@ -40,21 +40,21 @@ contract LedgerChannels {
     /// @dev mapping from channel id to its state
     mapping(uint => LedgerChannel) channels;
 
-    event Opening(uint indexed _id, address indexed initiator, address indexed confirmer,
+    event Opening(uint indexed id, address indexed initiator, address indexed confirmer,
         uint balanceA);
-    event OpenTimeout(uint indexed _id, address indexed initiator, address indexed confirmer,
+    event OpenTimeout(uint indexed id, address indexed initiator, address indexed confirmer,
         uint balanceA);
-    event Open(uint indexed _id, address indexed initiator, address indexed confirmer,
+    event Open(uint indexed id, address indexed initiator, address indexed confirmer,
         uint balanceA, uint balanceB);
-    event Closing(uint indexed _id, address indexed closer, address indexed confimer,
+    event Closing(uint indexed id, address indexed closer, address indexed confimer,
         uint finalBalanceA, uint finalBalanceB);
-    event Closed(uint indexed _id, address indexed closer, address indexed confimer,
+    event Closed(uint indexed id, address indexed closer, address indexed confimer,
         uint finalBalanceA, uint finalBalanceB);
-    event ClosedTimeout(uint indexed _id, address indexed closer, address indexed confimer,
+    event ClosedTimeout(uint indexed id, address indexed closer, address indexed confimer,
         uint finalBalanceA, uint finalBalanceB);
-    event ClosedDisputed(uint indexed _id, address indexed closer, address indexed confimer,
+    event ClosedDisputed(uint indexed id, address indexed closer, address indexed confimer,
         uint finalBalanceA, uint finalBalanceB);
-    event Withdrawal(uint indexed _id, address indexed by, uint balance);
+    event Withdrawal(uint indexed id, address indexed by, uint balance);
 
     modifier onlyParty(uint _id) {
         require(exists(_id), "Channel doesn't exist.");
