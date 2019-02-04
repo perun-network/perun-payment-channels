@@ -1,3 +1,8 @@
 node_modules
-build
+yarn-error.log
 
+# generated files
+/build
+/types
+/test/*.js.map
+/test/*.js
