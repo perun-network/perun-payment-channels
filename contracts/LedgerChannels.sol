@@ -102,12 +102,15 @@ contract LedgerChannels {
     /**
      * @notice opens request to open a payment channel by the sender of the tx.
      *   Sent ether is blocked in the opening channel as A's balance.
+     *   The id of this channel will be genId(msg.sender, _counterParty, _idSeed)
      * @param _counterParty The channel's other side, who needs to confirm the channel.
      * @param _timeoutDuration duration of confirmations of channel opening
      *   and closing
+     * @param _idSeed seed that is used to calculate the channel id, which will
+     *   be genId(msg.sender, _counterParty, _idSeed)
      */
-    function open(address _counterParty, uint48 _timeoutDuration) payable external returns (uint) {
-        uint id = genId(msg.sender, _counterParty, now);
+    function open(uint _idSeed, address _counterParty, uint48 _timeoutDuration) payable external {
+        uint id = genId(msg.sender, _counterParty, _idSeed);
         require(!exists(id), "Channel already exists.");
 
         LedgerChannel storage chan = channels[id];
@@ -118,8 +121,6 @@ contract LedgerChannels {
         resetTimeout(chan);
         chan.state = State.Opening;
         emit Opening(id, msg.sender, _counterParty, msg.value);
-
-        return id;
     }
 
     function confirmOpen(uint _id) payable external
@@ -198,13 +199,13 @@ contract LedgerChannels {
 
     /**
      * @notice generates a deterministic channel id for a channel between _A and
-     *   _B, opening at _blocktime.
-     *   Since we don't include a salt or other parameters, this has the side
-     *   effect that only one channel between two parties can be opened within a
-     *   single block time
+     *   _B, using seed _idSeed.
+     *   Channels are saved to the channels map at this id, having the effect
+     *   that a channel id can never belong to a different pair of channel
+     *   parties.
      */
-    function genId(address _A, address _B, uint _blocktime) public pure returns (uint) {
-        return uint256(keccak256(abi.encodePacked(_A, _B, _blocktime)));
+    function genId(address _A, address _B, uint _idSeed) public pure returns (uint) {
+        return uint256(keccak256(abi.encodePacked(_A, _B, _idSeed)));
     }
 
     function exists(uint _id) public view returns (bool) {
