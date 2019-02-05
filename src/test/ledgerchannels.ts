@@ -1,7 +1,7 @@
 import { assert, expect, should } from "chai";
 should();
 import { LedgerChannelsContract, LedgerChannelsInstance } from "../../types/truffle-contracts";
-import { toBN, keccak, ether, addr } from "./lib";
+import { toBN, keccak, ether, addr, advanceBlockTime, currentTimestamp } from "./lib";
 
 const LedgerChannels = artifacts.require<LedgerChannelsContract>("LedgerChannels");
 
@@ -32,6 +32,17 @@ contract("LedgerChannels", async (accounts) => {
     eventOpening.args.should.include(
       {initiator: accounts[0], confirmer: accounts[1]},
       "Opening event parties don't match");
+  });
+
+  it("should advance the blocktime by ~70 seconds", async () => {
+    let timestamp0 = await currentTimestamp();
+    await advanceBlockTime(70)
+    let timestamp1 = await currentTimestamp();
+    // allow for up to 10 seconds to pass in the environment
+    expect(timestamp1 - timestamp0).to.be.within(70,80);
+  })
+
+  it("should let the initiator close the timed-out channel", async () => {
   });
 });
 
