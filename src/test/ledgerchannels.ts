@@ -1,14 +1,9 @@
 import { assert, expect, should } from "chai";
 should();
 import { LedgerChannelsContract, LedgerChannelsInstance } from "../../types/truffle-contracts";
-import { Mixed } from "web3/utils";
+import { toBN, keccak, ether, addr } from "./lib";
 
 const LedgerChannels = artifacts.require<LedgerChannelsContract>("LedgerChannels");
-
-const toBN = web3.utils.toBN;
-const keccak = web3.utils.soliditySha3;
-function ether(x: number): BN { return web3.utils.toWei(web3.utils.toBN(x), "ether"); }
-function addr(a: string): Mixed { return {type: 'address', value: a}; }
 
 contract("LedgerChannels", async (accounts) => {
   let lc: LedgerChannelsInstance;
