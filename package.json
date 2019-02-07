@@ -4,12 +4,13 @@
     "@types/chai": "^4.1.7",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.12.19",
-    "@types/web3": "^1.0.18",
     "bn.js": "^4.11.8",
     "chai": "^4.2.0",
     "openzeppelin-solidity": "^2.1.2",
+    "truffle-assertions": "^0.7.2",
     "truffle-typings": "^1.0.6",
-    "typechain": "^0.3.11"
+    "typechain": "^0.3.11",
+    "web3": "^1.0.0-beta.43"
   },
   "scripts": {
     "postinstall": "patch node_modules/truffle-typings/index.d.ts < patches/truffle-typings.d.patch || true",

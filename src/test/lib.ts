@@ -1,8 +1,7 @@
 /// <reference types="truffle-typings" />
 
 import { promisify } from "util";
-import { Mixed } from "web3/utils";
-import { JsonRPCResponse, Callback } from "web3/providers";
+import { Mixed } from "web3-utils";
 
 export const toBN = web3.utils.toBN;
 export const keccak = web3.utils.soliditySha3;
