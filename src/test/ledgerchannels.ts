@@ -1,5 +1,6 @@
 import { assert, expect, should } from "chai";
 should();
+const truffleAssert = require('truffle-assertions');
 import { LedgerChannelsContract, LedgerChannelsInstance } from "../../types/truffle-contracts";
 import { toBN, keccak, ether, addr, advanceBlockTime, currentTimestamp } from "./lib";
 
@@ -33,6 +34,11 @@ contract("LedgerChannels", async (accounts) => {
       {initiator: accounts[0], confirmer: accounts[1]},
       "Opening event parties don't match");
   });
+
+  it("should not let the initiator close the channel", async () => {
+    return truffleAssert.reverts(lc.timeoutOpen(id),
+      "Confirmation timeout not reached yet.");
+  })
 
   it("should advance the blocktime by ~70 seconds", async () => {
     let timestamp0 = await currentTimestamp();
