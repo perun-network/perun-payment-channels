@@ -46,13 +46,13 @@ contract LedgerChannels {
         uint balanceA);
     event Open(uint indexed id, address indexed initiator, address indexed confirmer,
         uint balanceA, uint balanceB);
-    event Closing(uint indexed id, address indexed closer, address indexed confimer,
+    event Closing(uint indexed id, address indexed closer, address indexed confirmer,
         uint finalBalanceA, uint finalBalanceB);
-    event Closed(uint indexed id, address indexed closer, address indexed confimer,
+    event Closed(uint indexed id, address indexed closer, address indexed confirmer,
         uint finalBalanceA, uint finalBalanceB);
-    event ClosedTimeout(uint indexed id, address indexed closer, address indexed confimer,
+    event ClosedTimeout(uint indexed id, address indexed closer, address indexed confirmer,
         uint finalBalanceA, uint finalBalanceB);
-    event ClosedDisputed(uint indexed id, address indexed closer, address indexed confimer,
+    event ClosedDisputed(uint indexed id, address indexed closer, address indexed confirmer,
         uint finalBalanceA, uint finalBalanceB);
     event Withdrawal(uint indexed id, address indexed by, uint balance);
 
