@@ -26,7 +26,7 @@ contract("LedgerChannels", async (accounts) => {
 
   it("should open a ledger channel request from accounts[0] to [1]", async () => {
     // open new channel with acc[1], timeout of 60 sec, 1 eth
-    let openTx = await lc.open(idSeed, accounts[1], timeout, {value: balance.A});
+    let openTx = await lc.open(idSeed, timeout, accounts[1], balance.B, {value: balance.A});
     let eventOpening = openTx.logs[0];
 
     eventOpening.event.should.equal("Opening", "open() didn't fire an Opening event.");
@@ -69,7 +69,9 @@ contract("LedgerChannels", async (accounts) => {
 
   it("should open and confirm a channel between accounts[0] and [1]", async () => {
     truffleAssert.eventEmitted(
-      await lc.open(idSeed, accounts[1], timeout, {value: balance.A}), 'Opening');
+      await lc.open(idSeed, timeout, accounts[1], balance.B, {value: balance.A}),
+      'Opening'
+    );
     truffleAssert.eventEmitted(
       await lc.confirmOpen(id, {value: balance.B, from: accounts[1]}), 'Open',
       (ev: any) => { return ev.id.eq(id)

@@ -26,7 +26,11 @@ contract LedgerChannels {
     /**
      * @dev LedgerChannel holds the state of a channel.
      *   The initiator's address is stored at A, the confirmer's at B.
-     *   The channel-blocked money of X is stored in balanceX
+     *   The channel-blocked money of X is stored in X.balance
+     *   When opening the channel, the required amount to deposit by the
+     *   confirmer is saved at requiredBalanceConfirmer.
+     *   We cannot save it at B.balance directly, otherwise there would be
+     *   possible a withdraw() attack after timeoutOpen()
      */
     struct LedgerChannel {
         State state;
@@ -35,6 +39,7 @@ contract LedgerChannels {
         Party A;
         Party B;
         uint version;
+        uint requiredBalanceConfirmer;
     }
 
     /// @dev mapping from channel id to its state
@@ -107,13 +112,17 @@ contract LedgerChannels {
      * @notice opens request to open a payment channel by the sender of the tx.
      *   Sent ether is blocked in the opening channel as A's balance.
      *   The id of this channel will be genId(msg.sender, _counterParty, _idSeed)
-     * @param _counterParty The channel's other side, who needs to confirm the channel.
-     * @param _timeoutDuration duration of confirmations of channel opening
-     *   and closing
      * @param _idSeed seed that is used to calculate the channel id, which will
      *   be genId(msg.sender, _counterParty, _idSeed)
+     * @param _timeoutDuration duration of confirmations of channel opening
+     *   and closing
+     * @param _counterParty The channel's other side, who needs to confirm the channel.
+     * @param _counterBalance The other side's required balance.
      */
-    function open(uint _idSeed, address _counterParty, uint48 _timeoutDuration) payable external {
+    function open(uint _idSeed, uint48 _timeoutDuration,
+        address _counterParty, uint _counterBalance)
+        payable external
+    {
         uint id = genId(msg.sender, _counterParty, _idSeed);
 
         LedgerChannel storage chan = channels[id];
@@ -121,6 +130,7 @@ contract LedgerChannels {
         chan.A.addr = msg.sender;
         chan.A.balance = msg.value;
         chan.B.addr = _counterParty;
+        chan.requiredBalanceConfirmer = _counterBalance;
         chan.timeoutDuration = _timeoutDuration;
         resetTimeout(chan);
         chan.state = State.Opening;
@@ -131,6 +141,8 @@ contract LedgerChannels {
         inState(_id, State.Opening) onlyConfirmer(_id) withinTimeout(_id)
     {
         LedgerChannel storage chan = channels[_id];
+        require(msg.value == chan.requiredBalanceConfirmer,
+            "Wrong amount from opening confirmer.");
         chan.B.balance = msg.value;
         chan.state = State.Open;
         emit Open(_id, chan.A.addr, msg.sender, chan.A.balance, msg.value);
@@ -152,10 +164,7 @@ contract LedgerChannels {
         verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         update(_id, _version, _balanceA, _balanceB);
 
-        LedgerChannel storage chan = channels[_id];
-        resetTimeout(chan);
-        chan.state = (msg.sender == chan.A.addr) ? State.ClosingByA : State.ClosingByB;
-        emit Closing(_id, msg.sender, confirmer(_id), chan.A.balance, chan.B.balance);
+        closeCurrentBalance(_id);
     }
 
     function confirmClose(uint _id) external
@@ -252,6 +261,13 @@ contract LedgerChannels {
         chan.version = _version;
         chan.A.balance = _balanceA;
         chan.B.balance = _balanceB;
+    }
+
+    function closeCurrentBalance(uint _id) internal {
+        LedgerChannel storage chan = channels[_id];
+        resetTimeout(chan);
+        chan.state = (msg.sender == chan.A.addr) ? State.ClosingByA : State.ClosingByB;
+        emit Closing(_id, msg.sender, confirmer(_id), chan.A.balance, chan.B.balance);
     }
 
     /**
