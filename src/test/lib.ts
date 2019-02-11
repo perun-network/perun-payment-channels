@@ -29,6 +29,22 @@ export async function currentTimestamp(): Promise<number> {
   return block.timestamp;
 }
 
+export function snapshot(name: string, tests: any) {
+  describe("Snapshot: " + name, () => {
+    let snapshot_id: number;
+
+    before("take snapshot before all tests", async () => {
+      snapshot_id = (await asyncWeb3Send('evm_snapshot', [])).result;
+    });
+
+    after("restore snapshot after all test", async () => {
+      return asyncWeb3Send('evm_revert', [snapshot_id]);
+    });
+
+    tests();
+  });
+}
+
 export class ChannelUpdate {
   id: BN;
   version: BN;
