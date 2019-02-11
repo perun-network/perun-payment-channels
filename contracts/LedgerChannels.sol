@@ -167,6 +167,16 @@ contract LedgerChannels {
         closeCurrentBalance(_id);
     }
 
+    /**
+     * @notice Initiates closing of channel _id without updating the initial
+     *   balance. This is like close() without the udpate.
+     *   Transitions: Open -> ClosingByX
+     * @param _id channel id
+     */
+    function closeInitialBalance(uint _id) external inState(_id, State.Open) onlyParty(_id) {
+        closeCurrentBalance(_id);
+    }
+
     function confirmClose(uint _id) external
         inStateClosing(_id) onlyConfirmer(_id) withinTimeout(_id)
     {
