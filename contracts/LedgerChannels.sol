@@ -56,22 +56,26 @@ contract LedgerChannels {
         uint finalBalanceA, uint finalBalanceB);
     event Withdrawal(uint indexed id, address indexed by, uint balance);
 
+    /**
+     * @dev All public functions have to use the inState() modifier to prevent
+     * invalid state transitions. Besides open(), they also have to use an
+     * onlyX() modifer to only let allowed parties call. If they depend on a
+     * timeout constraint, the have to use a within/afterTimeout() modifier.
+     */
+
     modifier onlyParty(uint _id) {
-        require(exists(_id), "Channel doesn't exist.");
         require(channels[_id].A.addr == msg.sender || channels[_id].B.addr == msg.sender,
             "Caller is not a party of this channel.");
         _;
     }
 
     modifier onlyInitiator(uint _id) {
-        require(exists(_id), "Channel doesn't exist.");
         require(initiator(_id) == msg.sender,
             "Caller is not the initiator of this channel.");
         _;
     }
 
     modifier onlyConfirmer(uint _id) {
-        require(exists(_id), "Channel doesn't exist.");
         require(confirmer(_id) == msg.sender,
             "Caller is not the confirmer of this channel.");
         _;
@@ -111,9 +115,9 @@ contract LedgerChannels {
      */
     function open(uint _idSeed, address _counterParty, uint48 _timeoutDuration) payable external {
         uint id = genId(msg.sender, _counterParty, _idSeed);
-        require(!exists(id), "Channel already exists.");
 
         LedgerChannel storage chan = channels[id];
+        require(chan.state == State.Null, "Channel already exists.");
         chan.A.addr = msg.sender;
         chan.A.balance = msg.value;
         chan.B.addr = _counterParty;
@@ -124,7 +128,7 @@ contract LedgerChannels {
     }
 
     function confirmOpen(uint _id) payable external
-        onlyConfirmer(_id) inState(_id, State.Opening) withinTimeout(_id)
+        inState(_id, State.Opening) onlyConfirmer(_id) withinTimeout(_id)
     {
         LedgerChannel storage chan = channels[_id];
         chan.B.balance = msg.value;
@@ -133,7 +137,7 @@ contract LedgerChannels {
     }
 
     function timeoutOpen(uint _id) external
-        onlyInitiator(_id) inState(_id, State.Opening) afterTimeout(_id)
+        inState(_id, State.Opening) onlyInitiator(_id) afterTimeout(_id)
     {
         LedgerChannel storage chan = channels[_id];
         chan.state = State.Closed;
@@ -143,7 +147,7 @@ contract LedgerChannels {
 
     function close(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
-        onlyParty(_id) inState(_id, State.Open)
+        inState(_id, State.Open) onlyParty(_id)
     {
         verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         update(_id, _version, _balanceA, _balanceB);
@@ -155,7 +159,7 @@ contract LedgerChannels {
     }
 
     function confirmClose(uint _id) external
-        onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
+        inStateClosing(_id) onlyConfirmer(_id) withinTimeout(_id)
     {
         LedgerChannel storage chan = channels[_id];
         chan.state = State.Closed;
@@ -165,7 +169,7 @@ contract LedgerChannels {
 
     function disputedClose(uint _id, uint _version, uint _balanceA, uint _balanceB,
         bytes calldata _sigA, bytes calldata _sigB) external
-        onlyConfirmer(_id) inStateClosing(_id) withinTimeout(_id)
+        inStateClosing(_id) onlyConfirmer(_id) withinTimeout(_id)
     {
         verifySigs(_id, _version, _balanceA, _balanceB, _sigA, _sigB);
         update(_id, _version, _balanceA, _balanceB);
@@ -177,7 +181,7 @@ contract LedgerChannels {
     }
 
     function timeoutClose(uint _id) external
-        onlyInitiator(_id) inStateClosing(_id) afterTimeout(_id)
+        inStateClosing(_id) onlyInitiator(_id) afterTimeout(_id)
     {
         LedgerChannel storage chan = channels[_id];
         chan.state = State.Closed;
@@ -185,7 +189,7 @@ contract LedgerChannels {
         withdraw(_id);
     }
 
-    function withdraw(uint _id) public onlyParty(_id) inState(_id, State.Closed) {
+    function withdraw(uint _id) public inState(_id, State.Closed) onlyParty(_id) {
         LedgerChannel storage chan = channels[_id];
         Party storage party  = (msg.sender == chan.A.addr) ? chan.A : chan.B;
         uint balance = party.balance;
