@@ -169,7 +169,7 @@ contract("LedgerChannels", async (accounts) => {
 
     it("should have [0] withdraw their channel balance", async () => {
       assertHasWithdrawalEvent(await lc.withdraw(id), id, accounts[0], balance.A);
-    })
+    });
   });
 
   describe("Closing...", () => {
@@ -185,6 +185,12 @@ contract("LedgerChannels", async (accounts) => {
   });
 
   snapshot("Closing; timeout close", () => {
+    let u: ChannelUpdate;
+    before(() => {
+      u = chanUpdates.get('1') as ChannelUpdate;
+      u.should.not.be.undefined;
+    })
+
     it("should advance the blocktime by ~70 seconds", async () => {
       let timestamp0 = await currentTimestamp();
       await advanceBlockTime(timeout + 10)
@@ -194,10 +200,32 @@ contract("LedgerChannels", async (accounts) => {
     });
 
     it("should let the closing initiator close the timed-out channel", async () => {
-      let u = chanUpdates.get('1') as ChannelUpdate;
       let tx = await assertCloseEvent(lc.timeoutClose, false, "ClosedTimeout",
         accounts[0], accounts[0], accounts[1], '1');
       assertHasWithdrawalEvent(tx, u.id, accounts[0], u.balanceA);
+    });
+
+    it("should let the confirmer withdraw their balance nonetheless", async () => {
+      assertHasWithdrawalEvent(await lc.withdraw(u.id, {from: accounts[1]}),
+        u.id, accounts[1], u.balanceB);
+    });
+  });
+
+  snapshot("Closing; disputed close", () => {
+    let u: ChannelUpdate;
+    before(() => {
+      u = chanUpdates.get('2') as ChannelUpdate;
+      u.should.not.be.undefined;
+    })
+
+    it("should close channel disputedly by [1] with version 2", async () => {
+      let tx = await assertCloseEvent(lc.disputedClose, true, "ClosedDisputed",
+        accounts[1], accounts[0], accounts[1], '2');
+      assertHasWithdrawalEvent(tx, u.id, accounts[1], u.balanceB);
+    });
+
+    it("should let [0] withdraw their balance nonetheless", async () => {
+      assertHasWithdrawalEvent(await lc.withdraw(u.id), u.id, accounts[0], u.balanceA);
     });
   });
 });
