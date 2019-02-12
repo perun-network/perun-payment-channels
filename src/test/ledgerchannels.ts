@@ -98,6 +98,13 @@ contract("LedgerChannels", async (accounts) => {
         "Confirmation timeout not reached yet.");
     });
 
+    it("should not let the confirmer open with wrong amount", async () => {
+      return truffleAssert.reverts(
+        lc.confirmOpen(id,
+          {value: balance.B.add(ether(1)).clone() as BN, from: accounts[1]}),
+          "Wrong amount from opening confirmer.");
+    })
+
     it("should not let accounts[2] confirm the channel", async () => {
       return truffleAssert.reverts(
         lc.confirmOpen(id, {value: balance.B, from: accounts[2]}),
