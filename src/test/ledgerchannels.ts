@@ -245,5 +245,25 @@ contract("LedgerChannels", async (accounts) => {
       return assertState(id, State.Null);
     });
   });
+
+  describe("Close", () => {
+    let u: ChannelUpdate;
+    before(() => {
+      u = chanUpdates.get('1') as ChannelUpdate;
+      u.should.not.be.undefined;
+    })
+
+    it("should confirm channel closing by [1]", async () => {
+      let tx = await assertCloseEvent(lc.confirmClose, false, "Closed",
+        accounts[1], accounts[0], accounts[1], '1');
+      assertHasWithdrawalEvent(tx, u.id, accounts[1], u.balanceB);
+      return assertState(id, State.Closed);
+    });
+
+    it("should let [0] withdraw their balance", async () => {
+      assertHasWithdrawalEvent(await lc.withdraw(u.id), u.id, accounts[0], u.balanceA);
+      return assertState(id, State.Null);
+    });
+  });
 });
 
