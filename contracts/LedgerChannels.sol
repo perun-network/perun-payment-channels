@@ -1,4 +1,5 @@
 pragma solidity ^0.5.2;
+pragma experimental ABIEncoderV2;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
@@ -218,6 +219,14 @@ contract LedgerChannels {
         }
         emit Withdrawal(_id, msg.sender, balance);
         msg.sender.transfer(balance); // party.addr is not payable
+    }
+
+    /**
+     * Public getter for LedgerChannels.
+     * Primarily used for testing.
+     */
+    function getChannel(uint _id) public view returns (LedgerChannel memory) {
+        return channels[_id];
     }
 
     /**
