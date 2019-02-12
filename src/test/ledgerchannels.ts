@@ -128,7 +128,7 @@ contract("LedgerChannels", async (accounts) => {
       truffleAssert.eventEmitted(timeoutOpenTx, 'Withdrawal', (ev: any) => {
         return ev.id.eq(id) && ev.by === accounts[0] && ev.balance.eq(balance.A);
       });
-      return assertState(id, State.Null);
+      return assertState(id, State.Withdrawn);
     });
   }) /* snapshot Opening */
 
@@ -187,7 +187,7 @@ contract("LedgerChannels", async (accounts) => {
 
     it("should have [0] withdraw their channel balance", async () => {
       assertHasWithdrawalEvent(await lc.withdraw(id), id, accounts[0], balance.A);
-      return assertState(id, State.Null);
+      return assertState(id, State.Withdrawn);
     });
   });
 
@@ -229,7 +229,7 @@ contract("LedgerChannels", async (accounts) => {
     it("should let the confirmer withdraw their balance nonetheless", async () => {
       assertHasWithdrawalEvent(await lc.withdraw(u.id, {from: accounts[1]}),
         u.id, accounts[1], u.balanceB);
-      return assertState(id, State.Null);
+      return assertState(id, State.Withdrawn);
     });
   });
 
@@ -249,7 +249,7 @@ contract("LedgerChannels", async (accounts) => {
 
     it("should let [0] withdraw their balance nonetheless", async () => {
       assertHasWithdrawalEvent(await lc.withdraw(u.id), u.id, accounts[0], u.balanceA);
-      return assertState(id, State.Null);
+      return assertState(id, State.Withdrawn);
     });
   });
 
@@ -269,7 +269,7 @@ contract("LedgerChannels", async (accounts) => {
 
     it("should let [0] withdraw their balance", async () => {
       assertHasWithdrawalEvent(await lc.withdraw(u.id), u.id, accounts[0], u.balanceA);
-      return assertState(id, State.Null);
+      return assertState(id, State.Withdrawn);
     });
   });
 });

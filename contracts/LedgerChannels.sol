@@ -17,7 +17,7 @@ import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 contract LedgerChannels {
     using SafeMath for uint256;
 
-    enum State { Null, Opening, Open, ClosingByA, ClosingByB, Closed }
+    enum State { Null, Opening, Open, ClosingByA, ClosingByB, Closed, Withdrawn }
 
     struct Party {
         address addr;
@@ -215,7 +215,7 @@ contract LedgerChannels {
         uint balance = party.balance;
         party.balance = 0;
         if (chan.A.balance == 0 && chan.B.balance == 0) {
-            chan.state = State.Null;
+            chan.state = State.Withdrawn;
         }
         emit Withdrawal(_id, msg.sender, balance);
         msg.sender.transfer(balance); // party.addr is not payable

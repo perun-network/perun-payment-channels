@@ -9,6 +9,7 @@ export namespace State {
   export const ClosingByA = toBN(3);
   export const ClosingByB = toBN(4);
   export const Closed = toBN(5);
+  export const Withdrawn = toBN(6);
 };
 
 export class ChannelUpdate {
