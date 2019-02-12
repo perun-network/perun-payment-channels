@@ -1,49 +1,15 @@
 /// <reference types="truffle-typings" />
 
-import { promisify } from "util";
-import { Mixed } from "web3-utils";
+import { toBN, keccak } from "./web3";
 
-export const toBN = web3.utils.toBN;
-export const keccak = web3.utils.soliditySha3;
-
-export function ether(x: number): BN { return web3.utils.toWei(web3.utils.toBN(x), "ether"); }
-export function addr(a: string): Mixed { return {type: 'address', value: a}; }
-
-export async function asyncWeb3Send(method: string, params: any[], id?: number): Promise<any> {
-  let req: any = { jsonrpc: '2.0', method: method, params: params };
-  if (id != undefined) req.id = id;
-
-  return promisify((callback) => {
-    (web3.currentProvider as any).send(req, callback)
-  })();
-}
-
-export async function advanceBlockTime(time: number): Promise<any> {
-  await asyncWeb3Send('evm_increaseTime', [time]);
-  return asyncWeb3Send('evm_mine', []);
-}
-
-export async function currentTimestamp(): Promise<number> {
-  let blocknumber = await web3.eth.getBlockNumber();
-  let block = await web3.eth.getBlock(blocknumber);
-  return block.timestamp;
-}
-
-export function snapshot(name: string, tests: any) {
-  describe("Snapshot: " + name, () => {
-    let snapshot_id: number;
-
-    before("take snapshot before all tests", async () => {
-      snapshot_id = (await asyncWeb3Send('evm_snapshot', [])).result;
-    });
-
-    after("restore snapshot after all test", async () => {
-      return asyncWeb3Send('evm_revert', [snapshot_id]);
-    });
-
-    tests();
-  });
-}
+export namespace State {
+  export const Null = toBN(0);
+  export const Opening = toBN(1);
+  export const Open = toBN(2);
+  export const ClosingByA = toBN(3);
+  export const ClosingByB = toBN(4);
+  export const Closed = toBN(5);
+};
 
 export class ChannelUpdate {
   id: BN;
