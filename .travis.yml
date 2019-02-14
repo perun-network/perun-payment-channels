@@ -1,0 +1,14 @@
+dist: xenial
+sudo: required
+language: node_js
+node_js:
+  - "9.4.0"
+before_install:
+  - curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version version-number
+  - export PATH="$HOME/.yarn/bin:$PATH"
+  - yarn global add truffle solc
+script:
+  - yarn build
+  - truffle migrate
+  - yarn test
+  - kill -9 $(lsof -t -i:8545)
