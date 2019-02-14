@@ -85,7 +85,8 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "native",    // Use system solc
+      version: "0.5.3"        // Use javascript solc
+      //version: "native",    // Use system solc
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       // settings: {          // See the solidity docs for advice about optimization and evmVersion
       //  optimizer: {

@@ -2,13 +2,10 @@ dist: xenial
 sudo: required
 language: node_js
 node_js:
-  - "9.4.0"
+  - "10.15.1"
 before_install:
-  - curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version version-number
-  - export PATH="$HOME/.yarn/bin:$PATH"
-  - yarn global add truffle solc
+  - yarn global add truffle typescript
 script:
-  - yarn build
-  - truffle migrate
+  - yarn build:contracts
+  - ln -s src/test/ test
   - yarn test
-  - kill -9 $(lsof -t -i:8545)
