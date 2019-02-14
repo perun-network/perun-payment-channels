@@ -6,6 +6,5 @@ node_js:
 before_install:
   - yarn global add truffle typescript
 script:
-  - yarn build:contracts
-  - ln -s src/test/ test
+  - yarn build
   - yarn test

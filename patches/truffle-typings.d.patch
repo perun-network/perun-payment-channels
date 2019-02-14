@@ -5,7 +5,7 @@
  /// <reference types="chai" />
  /// <reference types="mocha" />
 +
-+declare type BN = import("bn.js");
++declare type BN = import("web3-utils").BN;
 +declare type Web3 = import("web3").default;
 +
  declare const assert: Chai.AssertStatic;
