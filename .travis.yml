@@ -1,0 +1,10 @@
+dist: xenial
+sudo: required
+language: node_js
+node_js:
+  - "10.15.1"
+before_install:
+  - yarn global add truffle typescript
+script:
+  - yarn build
+  - yarn test
