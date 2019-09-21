@@ -1,7 +1,19 @@
 /// <reference types="truffle-typings" />
 
 import { promisify } from "util";
-import { Mixed } from "web3-utils";
+
+export type Mixed =
+  | string
+  | number
+  | BN
+  | {
+      type: string;
+      value: string;
+  }
+  | {
+      t: string;
+      v: string;
+  };
 
 export const toBN = web3.utils.toBN;
 export const keccak = web3.utils.soliditySha3;
