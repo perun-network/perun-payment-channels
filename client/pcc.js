@@ -4,6 +4,8 @@ const chalk = require('chalk');
 const fs = require('fs');
 const ethers = require('ethers')
 
+const client = require('./client');
+
 // globals
 let name = ""
 let port = 6030;
@@ -60,6 +62,13 @@ async function main() {
   // Print balance
   let balance = await wallet.getBalance();
   console.log("Balance (ETH): " + ethers.utils.formatEther(balance));
+
+  // self-test
+  client.listen(listen, port);
+  client.open({
+    'url': 'ws://' + listen + ':' + port,
+    'origin': name
+  });
 }
 
 // init initializes the client by reading command line arguments and possibly
