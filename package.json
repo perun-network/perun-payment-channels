@@ -13,7 +13,6 @@
     "web3": "^1.0.0-beta.43"
   },
   "scripts": {
-    "postinstall": "patch node_modules/truffle-typings/index.d.ts < patches/truffle-typings.d.patch || true",
     "build:contracts": "truffle compile",
     "build:types": "typechain --target truffle './build/**/*.json'",
     "postbuild:types": "sed -i -e 's/BigNumber/BN/g' -e '/bignumber\\.js/d' types/truffle-contracts/index.d.ts",
