@@ -36,3 +36,10 @@ export async function currentTimestamp(): Promise<number> {
   return block.timestamp;
 }
 
+// fixed web3.eth.sign()
+export async function sign(msg: string, account: string) {
+  let sig = await web3.eth.sign(msg, account);
+  // fix wrong v value (add 27)
+  let v = sig.slice(130, 132);
+  return sig.slice(0,130) + (parseInt(v, 16)+27).toString(16);
+}

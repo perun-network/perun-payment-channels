@@ -1,6 +1,6 @@
 /// <reference types="truffle-typings" />
 
-import { toBN, keccak } from "./web3";
+import { toBN, keccak, sign } from "./web3";
 
 export namespace State {
   export const Null = toBN(0);
@@ -37,8 +37,8 @@ export class ChannelUpdate {
 
   public async sign(A: string, B: string) {
     let message = keccak(this.id, this.version, this.balanceA, this.balanceB);
-    this.sigA = await web3.eth.sign(message, A);
-    this.sigB = await web3.eth.sign(message, B);
+    this.sigA = await sign(message, A);
+    this.sigB = await sign(message, B);
   }
 
   /**
