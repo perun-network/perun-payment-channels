@@ -2,7 +2,6 @@ import { assert, expect, should } from "chai";
 should();
 const truffleAssert = require('truffle-assertions');
 import { LedgerChannelsContract, LedgerChannelsInstance } from "../../types/truffle-contracts";
-import { BN } from "web3-utils";
 import { toBN, keccak, ether, addr, currentTimestamp } from "../lib/web3";
 import { advanceBlockTime, snapshot } from "../lib/test";
 import { ChannelUpdate, State } from "../lib/ledgerchannels";
