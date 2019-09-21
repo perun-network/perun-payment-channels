@@ -10,6 +10,7 @@ let port = 6030;
 let listen = "0.0.0.0";
 
 // instances
+let config = null;
 let wallet = null;
 let provider = null;
 let contract = null;
@@ -25,7 +26,6 @@ const abi = JSON.parse(fs.readFileSync("../build/contracts/LedgerChannels.json")
 // command line arguments
 const argv = require('yargs')
   .option('name', {
-    alias: 'n',
     description: 'name of this client',
   })
   .option('listen', {
@@ -40,7 +40,6 @@ const argv = require('yargs')
     description: 'secret key of account',
   })
   .option('network', {
-    alias: 'n',
     description: 'ethereum network to connect to (don\'t use custom url)',
   })
   .option('url', {
@@ -52,9 +51,6 @@ const argv = require('yargs')
     description: 'contract address',
   })
   .argv;
-
-// configuration handler
-const config = new Conf();
 
 
 // MAIN PROGRAM
@@ -70,13 +66,20 @@ async function main() {
 // the persisted configurtion.
 // command line arguments take precedence over configuration.
 function init() {
+  let globalConfig = new Conf();
   // name
   if (argv.name) {
-    config.set('name', argv.name);
-    name = argv.name;
-  } else {
-    name = config.get('name', randomName());
+    globalConfig.set('lastUsedName', argv.name);
   }
+  if (globalConfig.has('lastUsedName')) {
+    name = globalConfig.get('lastUsedName');
+  } else {
+    fail("Set a name.")
+  }
+
+  // We have different configurations per name so we can run several instances
+  // of the client on the same machine.
+  config = new Conf({ configName: "config_" + name })
 
   // listen address
   if (argv.listen) {
@@ -167,10 +170,6 @@ function init() {
 function fail(msg) {
   console.error(chalk.red(msg));
   process.exit(1);
-}
-
-function randomName() {
-  return Math.random().toString(36).slice(-5);
 }
 
 
