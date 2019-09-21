@@ -1,0 +1,16 @@
+{
+  "name": "pcc",
+  "version": "1.0.0",
+  "description": "Perun Payment Channel Client for BloSSom 2019",
+  "main": "pcc.js",
+  "repository": "https://github.com/perun-network/perun-payment-channels/",
+  "author": "Sebastian Stammler",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "conf": "^6.0.1",
+    "ethers": "^4.0.37",
+    "yargs": "^14.0.0"
+  }
+}
