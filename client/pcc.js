@@ -9,7 +9,7 @@ const client = require('./client');
 const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
 
 // globals
-let name = ""
+let name = ''
 let port = 6030;
 let listen = "0.0.0.0";
 
@@ -61,6 +61,7 @@ const argv = require('yargs')
 async function main() {
   await init();
 
+  client.setup(contract, wallet, name);
   // self-test
   client.listen(listen, port);
   client.open({
