@@ -29,6 +29,15 @@ class Channel {
     };
   }
 
+  shortStateStr() {
+    return '{' +
+      this.id.slice(0,10) + '..., ' +
+      this.version.toString() + ', ' +
+      utils.formatEther(this.bals[0]) + ', ' +
+      utils.formatEther(this.bals[1]) +
+      '}'
+  }
+
   //// OUR UPDATE ////
 
   // transfer given amount from us to peer.
@@ -55,7 +64,8 @@ class Channel {
   // enableTransfer makes nextState the current state and sets the provided peer
   // signature.
   // returns false if signature is not valid.
-  enableTransfer(sig) {
+  enableTransfer(update) {
+    let sig = update.sigs[this.oidx];
     if (!verifyStateSig(sig, this.parts[this.oidx], this.nextState)) {
       console.log("Peer sent invalid signature to our transfer.")
       return false;
@@ -72,17 +82,18 @@ class Channel {
   //// PEER UPDATE ////
 
   // peerTransfer sets update from peer.
-  // returns own signature if valid update, or null.
-  async peerTransfer(sig, state) {
-    if (!verifyPeerUpdate(sig, state)) {
+  // returns update with own signature set.
+  async peerTransfer(update) {
+    if (!verifyPeerUpdate(update)) {
       return null;
     }
 
-    this.version = state.version;
-    this.bals = state.bals;
-    this.sigs[this.oidx] = sig;
+    this.version = update.version;
+    this.bals = update.bals;
+    this.sigs = update.sigs;
 
-    return this.sign();
+    await this.sign(); // ignore returned sig
+    return this.state;
   }
 
   async sign() {
@@ -94,23 +105,23 @@ class Channel {
     return this.sigs[this.idx];
   }
 
-  verifyPeerUpdate(sig, state) {
-    if (this.verifyStateSig(sig, this.parts[this.oidx], state)) {
+  verifyPeerUpdate(update) {
+    if (this.verifyStateSig(update.sigs[this.oidx], this.parts[this.oidx], update)) {
       console.log("Peer sent invalid signature with their update.");
       return false;
     }
 
-    if (!this.version.add(ethers.constants.One).eq(state.version)) {
+    if (!this.version.add(ethers.constants.One).eq(update.version)) {
       console.log("Version counter not increased by one.");
     }
 
-    // states are send as uint hex's, so we don't need to check negatives
-    if (!equalBals(this.bals, state.bals)) {
+    // updates are sent as uint hex's, so we don't need to check negatives
+    if (!equalBals(this.bals, update.bals)) {
       console.log("Update does not preserve the sum of balances.");
       return false;
     }
 
-    if (this.bals[this.idx].lte(state.bals[this.idx])) {
+    if (this.bals[this.idx].lte(update.bals[this.idx])) {
       console.log("Peer update decreases our balance.");
       return false;
     }
