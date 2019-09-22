@@ -184,10 +184,18 @@ async function handleProp(peer, prop) {
   contract.once(eventOpening, async () => {
     // TODO: check that proposer sent the funds he promised...
     console.log("[Opening] Proposer funded channel, funding...");
-    let tx = await contract.confirmOpen(
-      chan.id,
-      { value: chan.bals[1] }
-    );
+    let tx;
+    try {
+      tx = await contract.confirmOpen(
+        chan.id,
+        { value: chan.bals[1],
+          gasLimit: 300000 }
+      );
+    } catch (e) {
+      warn("confirmOpen threw exception.");
+      console.log(e);
+      return;
+    }
 
     console.log("confirmOpen called.");
     await tx.wait();
