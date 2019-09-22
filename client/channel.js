@@ -48,10 +48,16 @@ class Channel {
       return null;
     }
 
+    let bals;
+    if (this.idx) {
+      bals = [this.bals[0].add(amount), this.bals[1].sub(amount)]
+    } else {
+      bals = [this.bals[0].sub(amount), this.bals[1].add(amount)]
+    }
     this.nextState = {
-      id: id,
+      id: this.id,
       version: this.version.add(ethers.constants.One),
-      bals: [bals[this.idx].sub(amount), bals[this.oidx].add(amount)],
+      bals: bals,
     }
 
     let sigs = [null, null];
@@ -84,7 +90,7 @@ class Channel {
   // peerTransfer sets update from peer.
   // returns update with own signature set.
   async peerTransfer(update) {
-    if (!verifyPeerUpdate(update)) {
+    if (!this.verifyPeerUpdate(update)) {
       return null;
     }
 
@@ -106,7 +112,7 @@ class Channel {
   }
 
   verifyPeerUpdate(update) {
-    if (this.verifyStateSig(update.sigs[this.oidx], this.parts[this.oidx], update)) {
+    if (!verifyStateSig(update.sigs[this.oidx], this.parts[this.oidx], update)) {
       console.log("Peer sent invalid signature with their update.");
       return false;
     }
@@ -121,7 +127,7 @@ class Channel {
       return false;
     }
 
-    if (this.bals[this.idx].lte(update.bals[this.idx])) {
+    if (this.bals[this.idx].gt(update.bals[this.idx])) {
       console.log("Peer update decreases our balance.");
       return false;
     }
