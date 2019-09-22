@@ -6,6 +6,8 @@ const ethers = require('ethers')
 
 const client = require('./client');
 
+const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
+
 // globals
 let name = ""
 let port = 6030;
@@ -23,7 +25,7 @@ let openChannels = null;
 
 // CONFIGURATION
 // load Ganache-generated ABI
-const abi = JSON.parse(fs.readFileSync("../build/contracts/LedgerChannels.json")).abi;
+const abi = JSON.parse(fs.readFileSync(CONTRACT_PATH)).abi;
 
 // command line arguments
 const argv = require('yargs')
@@ -50,18 +52,14 @@ const argv = require('yargs')
   })
   .option('contract', {
     alias: 'c',
-    description: 'contract address',
+    description: 'contract address or "deploy" to deploy the contract',
   })
   .argv;
 
 
 // MAIN PROGRAM
 async function main() {
-  init();
-
-  // Print balance
-  let balance = await wallet.getBalance();
-  console.log("Balance (ETH): " + ethers.utils.formatEther(balance));
+  await init();
 
   // self-test
   client.listen(listen, port);
@@ -74,7 +72,7 @@ async function main() {
 // init initializes the client by reading command line arguments and possibly
 // the persisted configurtion.
 // command line arguments take precedence over configuration.
-function init() {
+async function init() {
   let globalConfig = new Conf();
   // name
   if (argv.name) {
@@ -149,31 +147,48 @@ function init() {
   // finally connect wallet to provider
   wallet = wallet.connect(provider);
 
-  // contract
-  if (argv.contract) {
-    config.set('contract', argv.contract);
-  }
-  if (config.has('contract')) {
-    var addr = config.get('contract');
-    contract = new ethers.Contract(addr, abi, wallet);
-  } else {
-    fail("Contract address unknown, set one.")
-  }
-
   console.log(
-    "Configuration path: " + config.path + "\n"
-    + "Name: " + name + "\n"
+    "Name: " + name + "\n"
+    + "Configuration path: " + config.path + "\n"
     + "Listening on: " + listen + ":" + port + "\n"
-    + "Address: " + wallet.address + "\n"
-    + "Contract: " + config.get('contract')
+    + "Address: " + wallet.address
     //+ "Secret Key: " + wallet.privateKey + "\n"
   );
   if (config.has('network')) {
-    console.log("Connected to network: " + config.get('network'));
+    console.log("Connecting to network: " + config.get('network'));
   } else {
-    console.log("Connected to url: " + config.get('url'));
+    console.log("Connecting to url: " + config.get('url'));
   }
 
+  // Print balance
+  let balance = await wallet.getBalance();
+  console.log("Balance (ETH): " + ethers.utils.formatEther(balance));
+
+  // contract
+  let addr;
+  if (argv.contract) {
+    if (argv.contract === 'deploy') {
+      console.log("Deploying contract...");
+      let bytecode = JSON.parse(fs.readFileSync(CONTRACT_PATH)).bytecode;
+      let deployer = new ethers.ContractFactory(abi, bytecode, wallet);
+      contract = await deployer.deploy();
+      addr = contract.address;
+    } else {
+      addr = argv.contract;
+    }
+    config.set('contract', addr);
+  }
+  if (config.has('contract')) {
+    addr = config.get('contract');
+    // set contract if we didn't deploy it
+    if (!contract) {
+      contract = new ethers.Contract(addr, abi, wallet);
+    }
+  } else {
+    fail('Contract address unknown, set one or set to "deploy" to deploy.')
+  }
+
+  console.log("Contract: " + config.get('contract'));
 }
 
 function fail(msg) {
