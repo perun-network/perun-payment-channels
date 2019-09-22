@@ -246,7 +246,7 @@ async function handleUpdateReq(peer, update) {
   let conn = conns[peer];
 
   ethifyUpdate(update);
-  if (!update.id.eq(utils.bigNumberify(peerChans[peer]))) {
+  if (update.id !== peerChans[peer]) {
     warn("Received update request for unknown channel " + update.id + " from peer " + peer);
     return;
   }
@@ -268,7 +268,7 @@ async function handleUpdateRes(peer, update) {
   let conn = conns[peer];
 
   ethifyUpdate(update);
-  if (!update.id.eq(utils.bigNumberify(peerChans[peer]))) {
+  if (update.id !== peerChans[peer]) {
     warn("Received update response for unknown channel " + update.id + " from peer " + peer);
     return;
   }
@@ -298,5 +298,6 @@ module.exports = {
   setup: setup,
   listen: listen,
   connect: connect,
-  proposeChannel: proposeChannel
+  proposeChannel: proposeChannel,
+  proposeTransfer: proposeTransfer
 }
