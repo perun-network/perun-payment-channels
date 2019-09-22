@@ -64,9 +64,14 @@ async function main() {
   client.setup(contract, wallet, name);
   // self-test
   client.listen(listen, port);
-  client.open({
-    'url': 'ws://' + listen + ':' + port,
-    'origin': name
+  client.connect('seb2', 'ws://' + listen + ':' + port);
+  let sleep = require('util').promisify(setTimeout);
+  await sleep(1000);
+  client.proposeChannel('seb2', {
+    nonce: ethers.constants.Zero,
+    timeoutDur: 60, // in sec = 1 min
+    parts: [wallet.address, null],
+    bals: [ethers.constants.Zero, ethers.constants.Zero],
   });
 }
 
