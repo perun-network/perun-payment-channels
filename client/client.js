@@ -19,6 +19,8 @@ let conns = {};
 let props = {};
 // chans - map from ids to channels
 let chans = {};
+// map from peers to a single channel id
+let peerChans = {};
 
 // client dependency injector
 function setup(_contract, _wallet, _name) {
@@ -46,8 +48,7 @@ function listen(host, port) {
     let conn = request.accept(PROTOCOL, request.origin);
     console.log((new Date()) + ' Connection accepted from ' + request.origin);
 
-    conns[request.origin] = conn;
-    setupConn(conn);
+    setupConn(request.origin, conn);
   });
 }
 
@@ -58,14 +59,13 @@ function connect(peer, url) {
   let client = new WebSocketClient();
 
   client.on('connectFailed', function(error) {
-    console.log('Connect Error: ' + error.toString());
+    warn('Connect Error: ' + error.toString());
   });
 
   client.on('connect', function(conn) {
     console.log((new Date()) + " WebSocket Client connected.");
 
-    conns[peer] = conn;
-    setupConn(conn);
+    setupConn(peer, conn);
   })
 
   client.connect(url, PROTOCOL, name);
@@ -76,14 +76,14 @@ async function proposeChannel(peer, proposal) {
   console.log("Proposing\n" + JSON.stringify(proposal));
   let conn = conns[peer];
   if (!conn) {
-    console.log("I don't have a connection to peer: " + peer);
+    warn("I don't have a connection to peer: " + peer);
     return;
   }
 
   let bal = await wallet.getBalance();
   // Proposer always has index 0, accepter index 1
   if (bal.lt(proposal.bals[0])) {
-    console.log("Insufficient funds for own proposal " + proposal);
+    warn("Insufficient funds for own proposal " + proposal);
     return;
   }
 
@@ -92,9 +92,11 @@ async function proposeChannel(peer, proposal) {
 }
 
 // common connection handling for client and server
-function setupConn(conn) {
+function setupConn(peer, conn) {
+  conns[peer] = conn;
+
   conn.on('error', function(err) {
-    console.error("Connection error: " + error.toString());
+    warn("Connection error: " + error.toString());
   });
 
   conn.on('close', function(reasonCode, description) {
@@ -108,18 +110,18 @@ function setupConn(conn) {
       return;
     }
 
-    return handleMsg(conn, JSON.parse(message.utf8Data));
+    return handleMsg(peer, JSON.parse(message.utf8Data));
   });
 }
 
-async function handleMsg(conn, msg) {
+async function handleMsg(peer, msg) {
   console.log("Received message:");
   console.log(msg);
   switch (msg.type) {
     case 'proposal':
-      return handleProp(conn, msg.data);
+      return handleProp(peer, msg.data);
     case 'accept':
-      return handleAccept(conn, msg.data);
+      return handleAccept(peer, msg.data);
     case 'updateReq':
       break;
     case 'updateRes':
@@ -129,13 +131,17 @@ async function handleMsg(conn, msg) {
   }
 }
 
-async function handleProp(conn, prop) {
+//// ON-CHAIN HANDLERS ////
+
+async function handleProp(peer, prop) {
+  let conn = conns[peer];
   ethifyProposal(prop);
+
   // check that we have enough eth in our account
   let bal = await wallet.getBalance();
   // Proposer always has index 0, accepter index 1
   if (bal.lt(prop.bals[1])) {
-    console.log("Insufficient funds for peer prop " + prop);
+    warn("Insufficient funds for peer prop " + prop);
     return
   }
   // complete proposal - our address is missing so far
@@ -146,7 +152,7 @@ async function handleProp(conn, prop) {
   // setup local channel instance
   // We are accepter -> idx 1
   let chan = Channel.fromProp(prop, 1, wallet);
-  chans[chan.id] = chan;
+  setupChannel(peer, chan);
 
   // wait for Opening event caused by proposer
   // The channel id doesn't commit to the balances, so we filter that one too.
@@ -165,14 +171,15 @@ async function handleProp(conn, prop) {
   });
 }
 
-async function handleAccept(conn, prop) {
+async function handleAccept(peer, prop) {
+  let conn = conns[peer];
   // TODO: check that proposal matches the one we sent!
   ethifyProposal(prop);
 
   // setup local channel instance
   // We are proposer -> idx 0
   let chan = Channel.fromProp(prop, 0, wallet);
-  chans[chan.id] = chan;
+  setupChannel(peer, chan);
 
   // Proposer (we) receives accept -> counterParty has idx 1
   let tx = await contract.open(
@@ -183,7 +190,6 @@ async function handleAccept(conn, prop) {
     { value: chan.bals[0] }
   )
   console.log("open called.");
-  //console.log(tx);
 
   // wait for tx to be mined.
   await tx.wait();
