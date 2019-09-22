@@ -3,7 +3,7 @@ const Conf = require('conf');
 const chalk = require('chalk');
 const fs = require('fs');
 const ethers = require('ethers')
-
+const utils = ethers.utils;
 const client = require('./client');
 
 const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
@@ -54,6 +54,9 @@ const argv = require('yargs')
     alias: 'c',
     description: 'contract address or "deploy" to deploy the contract',
   })
+  .option('testOpen', {
+    description: 'test opening channel with given peer in format peer,url',
+  })
   .argv;
 
 
@@ -62,16 +65,27 @@ async function main() {
   await init();
 
   client.setup(contract, wallet, name);
-  // self-test
   client.listen(listen, port);
-  client.connect('seb2', 'ws://' + listen + ':' + port);
+
+  // testing
+  if (argv.testOpen) {
+    let [peer, url] = argv.testOpen.split(',')
+    await testOpen(peer, url);
+  }
+}
+
+async function testOpen(peer, url) {
+  client.connect(peer, url);
+
   let sleep = require('util').promisify(setTimeout);
-  await sleep(1000);
-  client.proposeChannel('seb2', {
-    nonce: ethers.constants.Zero,
+  await sleep(500); // wait 500ms for connection to establish...
+
+  let bal = ethers.utils.parseEther('0.1');
+  client.proposeChannel(peer, {
+    nonce: utils.bigNumberify(utils.randomBytes(32)),
     timeoutDur: 60, // in sec = 1 min
     parts: [wallet.address, null],
-    bals: [ethers.constants.Zero, ethers.constants.Zero],
+    bals: [bal, bal],
   });
 }
 
