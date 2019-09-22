@@ -91,6 +91,30 @@ async function proposeChannel(peer, proposal) {
   conn.sendUTF(JSON.stringify({ 'type': 'proposal', 'data': proposal }));
 }
 
+// proposes to send an off-chain transaction
+async function proposeTransfer(peer, amount) {
+  console.log("Proposing to transfer " + utils.formatEther(amount) + " to " + peer);
+  let conn = conns[peer];
+  if (!conn) {
+    warn("No connection to peer: " + peer);
+    return;
+  }
+
+  let id = peerChans[peer];
+  if (!id) {
+    warn("No channel open for peer: " + peer);
+  }
+
+  let chan = chans[id];
+
+  let update = await chan.transfer(amount);
+  if (!update) {
+    warn("Error preparing transfer of " + utils.formatEther(amount) + " to " + peer);
+    return;
+  }
+  conn.sendUTF(JSON.stringify({ 'type': 'updateReq', 'data': update }));
+}
+
 // common connection handling for client and server
 function setupConn(peer, conn) {
   conns[peer] = conn;
@@ -123,9 +147,9 @@ async function handleMsg(peer, msg) {
     case 'accept':
       return handleAccept(peer, msg.data);
     case 'updateReq':
-      break;
+      return handleUpdateReq(peer, msg.data);
     case 'updateRes':
-      break;
+      return handleUpdateRes(peer, msg.data);
     case 'close':
       break;
   }
@@ -207,6 +231,63 @@ function ethifyProposal(proposal) {
   proposal.nonce = utils.bigNumberify(proposal.nonce);
   proposal.bals = proposal.bals.map(x => utils.bigNumberify(x));
   proposal.parts = proposal.parts.map(x => x ? utils.getAddress(x) : null);
+}
+
+function setupChannel(peer, chan) {
+  peerChans[peer] = chan.id;
+  chans[chan.id] = chan;
+  // TODO: subscribe to closing events and confirming or disputing immediately
+}
+
+//// OFF-CHAIN TRANSFER HANDLERS ////
+
+// handles incoming update requests, accepting immediately if valid
+async function handleUpdateReq(peer, update) {
+  let conn = conns[peer];
+
+  ethifyUpdate(update);
+  if (!update.id.eq(utils.bigNumberify(peerChans[peer]))) {
+    warn("Received update request for unknown channel " + update.id + " from peer " + peer);
+    return;
+  }
+
+  let chan = chans[update.id];
+  let signedUpdate = await chan.peerTransfer(update);
+  if (!signedUpdate) {
+    warn("Received invalid update from peer");
+    console.log(update);
+    return;
+  }
+
+  console.log("Received valid update request, state updated!\n" + chan.shortStateStr())
+  console.log("Sending update response with signature to peer " + peer);
+  conn.sendUTF(JSON.stringify({ 'type': 'updateRes', 'data': signedUpdate }));
+}
+
+async function handleUpdateRes(peer, update) {
+  let conn = conns[peer];
+
+  ethifyUpdate(update);
+  if (!update.id.eq(utils.bigNumberify(peerChans[peer]))) {
+    warn("Received update response for unknown channel " + update.id + " from peer " + peer);
+    return;
+  }
+
+  let chan = chans[update.id];
+  let ok = chan.enableTransfer(update);
+  if (ok) {
+    console.log("Received valid signature from peer, state updated!\n" + chan.shortStateStr());
+  } else {
+    warn("Received invalid signature from peer, state not updated!");
+  }
+}
+
+// JSON unmarshaler for updates send over the wire
+function ethifyUpdate(update) {
+  //update.id = utils.bigNumberify(update.id); // id is hex string
+  update.version = utils.bigNumberify(update.version);
+  update.bals = update.bals.map(x => utils.bigNumberify(x));
+  // sigs should be hex strings, so ok
 }
 
 function warn(msg) {
