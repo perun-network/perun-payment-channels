@@ -1,13 +1,12 @@
 'use strict';
-const web3x = require("../build/lib/web3");
-const keccak = web3x.keccak;
 const ethers = require('ethers');
 const utils = ethers.utils;
 
 class Channel {
-  constructor(nonce, parts, bals, idx, signer) {
+  constructor(nonce, timeoutDur, parts, bals, idx, signer) {
     this.version = ethers.constants.Zero;
     this.nonce = nonce;
+    this.timeoutDur = timeoutDur;
     this.parts = parts;
     this.bals = bals;
     this.idx = idx;
@@ -15,8 +14,10 @@ class Channel {
     this.signer = signer;
     this.sigs = [null, null];
     this.id = genId(parts[0], parts[1], nonce);
-    console.log("New channel created:\n");
-    console.log(JSON.stringify(this));
+  }
+
+  static fromProp(prop, idx, signer) {
+    return new Channel(prop.nonce, prop.timeoutDur, prop.parts, prop.bals, idx, signer);
   }
 
   get state() {
@@ -32,7 +33,7 @@ class Channel {
 
   // transfer given amount from us to peer.
   // returns state with signature to send to peer.
-  transfer(amount) {
+  async transfer(amount) {
     if (! (amount.gt(ethers.constants.Zero)
       && amount.lte(this.bals[this.idx])) ) {
       return null;
