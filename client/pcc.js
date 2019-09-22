@@ -78,15 +78,23 @@ async function testOpen(peer, url) {
   client.connect(peer, url);
 
   let sleep = require('util').promisify(setTimeout);
-  await sleep(500); // wait 500ms for connection to establish...
+  await sleep(500); // wait for connection to establish...
 
-  let bal = ethers.utils.parseEther('0.1');
+  let bal = utils.parseEther('0.1');
   client.proposeChannel(peer, {
     nonce: utils.bigNumberify(utils.randomBytes(32)),
     timeoutDur: 60, // in sec = 1 min
     parts: [wallet.address, null],
     bals: [bal, bal],
   });
+
+  await sleep(6000); // wait for channel funding
+
+  // send 10 off-chain TXs
+  for (let i = 0; i < 10; i++) {
+    client.proposeTransfer(peer, utils.parseEther('0.001'));
+    await sleep(100); // pause between transfers as above call is not synchronous
+  }
 }
 
 // init initializes the client by reading command line arguments and possibly
@@ -182,7 +190,7 @@ async function init() {
 
   // Print balance
   let balance = await wallet.getBalance();
-  console.log("Balance (ETH): " + ethers.utils.formatEther(balance));
+  console.log("Balance (ETH): " + utils.formatEther(balance));
 
   // contract
   let addr;
