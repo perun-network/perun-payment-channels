@@ -38,6 +38,14 @@ class Channel {
       '}'
   }
 
+  get we() {
+    return this.parts[this.idx];
+  }
+
+  get peer() {
+    return this.parts[this.oidx];
+  }
+
   //// OUR UPDATE ////
 
   // transfer given amount from us to peer.
