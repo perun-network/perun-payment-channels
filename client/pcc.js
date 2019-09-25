@@ -92,6 +92,9 @@ async function runTest(peer, url) {
     client.proposeTransfer(peer, utils.parseEther('0.001'));
     await sleep(100); // pause between transfers as above call is not synchronous
   }
+
+  // close channel with latest state
+  client.closeChannel(peer);
 }
 
 // init initializes the client by reading command line arguments and possibly

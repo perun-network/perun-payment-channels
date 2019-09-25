@@ -110,12 +110,7 @@ async function proposeTransfer(peer, amount) {
     return;
   }
 
-  let id = peerChans[peer];
-  if (!id) {
-    warn("No channel open for peer: " + peer);
-  }
-
-  let chan = chans[id];
+  let chan = getChan(peer);
 
   let update = await chan.transfer(amount);
   if (!update) {
@@ -123,6 +118,38 @@ async function proposeTransfer(peer, amount) {
     return;
   }
   conn.sendUTF(JSON.stringify({ 'type': 'updateReq', 'data': update }));
+}
+
+async function closeChannel(peer) {
+  console.log("Attempting to close channel with peer: " + peer);
+  let chan = getChan(peer);
+
+  let tx;
+  if (chan.version === 0) {
+    tx = await contract.closeInitialBalance(id);
+  } else {
+    tx = await contract.close(
+      chan.id, chan.version,
+      chan.bals[0], chan.bals[1],
+      chan.sigs[0], chan.sigs[1]
+    );
+  }
+  console.log("close called on channel with peer: " + peer);
+  await tx.wait();
+}
+
+function getChan(peer) {
+  let conn = conns[peer];
+  if (!conn) {
+    throw new Error("No connection to peer: " + peer);
+  }
+
+  let id = peerChans[peer];
+  if (!id) {
+    throw new Error("No channel open for peer: " + peer);
+  }
+
+  return chans[id];
 }
 
 // common connection handling for client and server
@@ -161,6 +188,7 @@ async function handleMsg(peer, msg) {
     case 'updateRes':
       return handleUpdateRes(peer, msg.data);
     case 'close':
+      // we currently just watch the chain for Closing events
       break;
   }
 }
@@ -255,7 +283,32 @@ function ethifyProposal(proposal) {
 function setupChannel(peer, chan) {
   peerChans[peer] = chan.id;
   chans[chan.id] = chan;
-  // TODO: subscribe to closing events and confirming or disputing immediately
+
+  // watch closing events caused by peer
+  let eventClosing = contract.filters.Closing(chan.id, chan.peer);
+  contract.once(eventClosing,
+    async (_id, _closer, _confirmer, _balA, _balB) => {
+      console.log("Peer tries to close channel...");
+      // I forgot to put the version number in the event, let's compare the
+      // balances instead...
+      let tx;
+      if (!_balA.eq(chan.bals[0])) {
+        console.log("Peer tries to cheat us! Calling disputedClose()");
+        tx = await contract.disputedClose(
+          chan.id, chan.version,
+          chan.bals[0], chan.bals[1],
+          chan.sigs[0], chan.sigs[1]
+        );
+      } else {
+        console.log("Peer used latest state, all good. Calling confirmClose()");
+        tx = await contract.confirmClose(chan.id);
+      }
+      await tx.wait();
+      console.log("Channel with peer " + peer + "closed.");
+      // note: disputedClose and confirmOpen both called withdraw() already.
+  });
+
+  // TODO: withdraw money on Closed event caused by peer
 }
 
 //// OFF-CHAIN TRANSFER HANDLERS ////
@@ -318,5 +371,6 @@ module.exports = {
   listen: listen,
   connect: connect,
   proposeChannel: proposeChannel,
-  proposeTransfer: proposeTransfer
+  proposeTransfer: proposeTransfer,
+  closeChannel: closeChannel
 }
