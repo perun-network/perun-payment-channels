@@ -5,6 +5,7 @@ const fs = require('fs');
 const ethers = require('ethers')
 const utils = ethers.utils;
 const client = require('./client');
+const CLI = require('cliffy').CLI;
 let sleep = require('util').promisify(setTimeout);
 
 const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
@@ -58,6 +59,9 @@ const argv = require('yargs')
   .option('test', {
     description: 'test channel protocol with given peer in format <peer,url>',
   })
+  .option('cli', {
+    description: 'Start CLI',
+  })
   .argv;
 
 
@@ -72,6 +76,8 @@ async function main() {
   if (argv.test) {
     let [peer, url] = argv.test.split(',')
     await runTest(peer, url);
+  } else if (argv.cli) {
+    runCLI();
   }
 }
 
@@ -93,7 +99,7 @@ async function runTest(peer, url) {
   }
 
   // close channel with latest state
-  client.closeChannel(peer);
+  await client.closeChannel(peer);
 }
 
 // init initializes the client by reading command line arguments and possibly
@@ -216,6 +222,50 @@ async function init() {
   }
 
   console.log("Contract: " + config.get('contract'));
+}
+
+function runCLI() {
+  const cli = new CLI()
+    .setDelimiter("⚡> ")
+    .addCommand("connect", {
+      description: "connect to peer",
+      parameters: ["peer", "url"],
+      action: async (params, options) => {
+        console.log("Connecting to peer " + params.peer + " on URL " + params.url);
+        return client.connect(params.peer, params.url);
+      },
+    })
+    .addCommand("open", {
+      description: "propose to open channel",
+      parameters: ["peer", "balance"],
+      action: async (params, options) => {
+        console.log("Proposing channel to peer " + params.peer + " with balance  " + params.balance);
+        let bal = utils.parseEther(params.balance);
+        return client.proposeChannel(params.peer, {
+          nonce: utils.bigNumberify(utils.randomBytes(32)),
+          timeoutDur: 60, // in sec = 1 min
+          parts: [wallet.address, null],
+          bals: [bal, bal],
+        });
+      },
+    })
+    .addCommand("send", {
+      description: "make off-chain transfer to peer",
+      parameters: ["peer", "amount"],
+      action: (params, options) => {
+        console.log("Sending peer " + params.peer + " " + params.amount + "ETH");
+        client.proposeTransfer(params.peer, utils.parseEther(params.amount));
+      },
+    })
+    .addCommand("close", {
+      description: "close channel with peer",
+      parameters: ["peer"],
+      action: async (params, options) => {
+        console.log("Closing channel with peer " + params.peer);
+        return client.closeChannel(params.peer);
+      },
+    })
+    .show();
 }
 
 function fail(msg) {
