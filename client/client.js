@@ -54,21 +54,25 @@ function listen(host, port) {
 
 // connect opens a ws connection to the given url and saves it under the
 // specified peer identifier
-function connect(peer, url) {
+async function connect(peer, url) {
   // TODO: check if connection to peer already present.
   let client = new WebSocketClient();
 
-  client.on('connectFailed', function(error) {
-    warn('Connect Error: ' + error.toString());
+  return new Promise((resolve, reject) => {
+    client.on('connectFailed', function(error) {
+      warn('Connect Error: ' + error.toString());
+      reject(error);
+    });
+
+    client.on('connect', function(conn) {
+      console.log((new Date()) + " WebSocket Client connected.");
+
+      setupConn(peer, conn);
+      resolve();
+    });
+
+    client.connect(url, PROTOCOL, name);
   });
-
-  client.on('connect', function(conn) {
-    console.log((new Date()) + " WebSocket Client connected.");
-
-    setupConn(peer, conn);
-  })
-
-  client.connect(url, PROTOCOL, name);
 }
 
 // proposeChannel sends a channel proposal on the specified connection

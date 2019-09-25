@@ -5,6 +5,7 @@ const fs = require('fs');
 const ethers = require('ethers')
 const utils = ethers.utils;
 const client = require('./client');
+let sleep = require('util').promisify(setTimeout);
 
 const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
 
@@ -54,8 +55,8 @@ const argv = require('yargs')
     alias: 'c',
     description: 'contract address or "deploy" to deploy the contract',
   })
-  .option('testOpen', {
-    description: 'test opening channel with given peer in format peer,url',
+  .option('test', {
+    description: 'test channel protocol with given peer in format <peer,url>',
   })
   .argv;
 
@@ -68,17 +69,14 @@ async function main() {
   client.listen(listen, port);
 
   // testing
-  if (argv.testOpen) {
-    let [peer, url] = argv.testOpen.split(',')
-    await testOpen(peer, url);
+  if (argv.test) {
+    let [peer, url] = argv.test.split(',')
+    await runTest(peer, url);
   }
 }
 
-async function testOpen(peer, url) {
-  client.connect(peer, url);
-
-  let sleep = require('util').promisify(setTimeout);
-  await sleep(500); // wait for connection to establish...
+async function runTest(peer, url) {
+  await client.connect(peer, url);
 
   let bal = utils.parseEther('0.1');
   client.proposeChannel(peer, {
