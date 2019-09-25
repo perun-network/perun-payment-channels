@@ -79,14 +79,13 @@ async function runTest(peer, url) {
   await client.connect(peer, url);
 
   let bal = utils.parseEther('0.1');
-  client.proposeChannel(peer, {
+  await client.proposeChannel(peer, {
     nonce: utils.bigNumberify(utils.randomBytes(32)),
     timeoutDur: 60, // in sec = 1 min
     parts: [wallet.address, null],
     bals: [bal, bal],
   });
 
-  await sleep(6000); // wait for channel funding
 
   // send 10 off-chain TXs
   for (let i = 0; i < 10; i++) {

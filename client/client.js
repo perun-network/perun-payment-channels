@@ -93,6 +93,12 @@ async function proposeChannel(peer, proposal) {
 
   props[peer] = proposal;
   conn.sendUTF(JSON.stringify({ 'type': 'proposal', 'data': proposal }));
+  return new Promise((resolve, reject) => {
+    // funded() will be called in handleAccept() so that the promise resolves
+    // once the channel is funded from our side.
+    proposal.funded = resolve;
+    proposal.rejected = reject;
+  })
 }
 
 // proposes to send an off-chain transaction
@@ -235,6 +241,7 @@ async function handleAccept(peer, prop) {
   contract.once(eventOpen, () => {
     console.log("[Open] Peer funded channel, it is open! 🎉")
     // TODO: set state of channel to funded - currently we don't track state
+    props[peer].funded();
   });
 }
 
