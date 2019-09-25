@@ -86,9 +86,8 @@ async function runTest(peer, url) {
     bals: [bal, bal],
   });
 
-
-  // send 10 off-chain TXs
-  for (let i = 0; i < 10; i++) {
+  // send 2 off-chain TXs
+  for (let i = 0; i < 2; i++) {
     client.proposeTransfer(peer, utils.parseEther('0.001'));
     await sleep(100); // pause between transfers as above call is not synchronous
   }
@@ -159,7 +158,7 @@ async function init() {
     var url = config.get('url');
     provider = new ethers.providers.JsonRpcProvider(url);
   } else {
-    config.set('network', 'rinkeby')
+    config.set('network', 'ropsten')
   }
 
   // provider by network
