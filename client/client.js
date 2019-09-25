@@ -176,8 +176,8 @@ function setupConn(peer, conn) {
 }
 
 async function handleMsg(peer, msg) {
-  console.log("Received message:");
-  console.log(msg);
+  //console.log("Received message:");
+  //console.log(msg);
   switch (msg.type) {
     case 'proposal':
       return handleProp(peer, msg.data);
