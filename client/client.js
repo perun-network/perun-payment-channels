@@ -271,6 +271,7 @@ async function handleAccept(peer, prop) {
   // wait for tx to be mined.
   await tx.wait();
   console.log("open tx mined. Wait for Open event caused by funding from peer.");
+}
 
   let eventOpen = contract.filters.Open(chan.id);
   contract.once(eventOpen, () => {
@@ -283,6 +284,10 @@ function handleReject(peer, rejection) {
   props[peer].rejected();
 }
 
+function list() {
+  for (peer in peerChans) {
+    console.log(peer + ": " + chans[peerChans[peer]].shortStateStr());
+  }
 }
 
 // JSON unmarshaler for proposals send over the wire
@@ -383,5 +388,6 @@ module.exports = {
   connect: connect,
   proposeChannel: proposeChannel,
   proposeTransfer: proposeTransfer,
-  closeChannel: closeChannel
+  closeChannel: closeChannel,
+  list: list
 }

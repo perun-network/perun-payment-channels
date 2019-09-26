@@ -273,6 +273,12 @@ function runCLI() {
         return client.closeChannel(params.peer);
       },
     })
+    .addCommand("list", {
+      description: "list channels",
+      action: () => {
+        client.list();
+      },
+    })
     .show();
 }
 
