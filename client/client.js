@@ -96,6 +96,7 @@ async function proposeChannel(peer, proposal) {
   return new Promise((resolve, reject) => {
     // funded() will be called in handleAccept() so that the promise resolves
     // once the channel is funded from our side.
+    // rejected() would be called in handleReject()
     proposal.funded = resolve;
     proposal.rejected = reject;
   })
@@ -183,6 +184,8 @@ async function handleMsg(peer, msg) {
       return handleProp(peer, msg.data);
     case 'accept':
       return handleAccept(peer, msg.data);
+    case 'reject':
+      return handleReject(peer, msg.data);
     case 'updateReq':
       return handleUpdateReq(peer, msg.data);
     case 'updateRes':
@@ -203,8 +206,12 @@ async function handleProp(peer, prop) {
   let bal = await wallet.getBalance();
   // Proposer always has index 0, accepter index 1
   if (bal.lt(prop.bals[1])) {
-    warn("Insufficient funds for peer prop " + prop);
-    return
+    warn("Insufficient funds for peer proposal:\n");
+    console.log(proposal);
+    conn.sendUTF(JSON.stringify({ 'type': 'reject', 'data':
+      { 'reason': 'insufficient funds' }
+    }));
+    return;
   }
   // complete proposal - our address is missing so far
   prop.parts[1] = wallet.address;
@@ -271,6 +278,11 @@ async function handleAccept(peer, prop) {
     // TODO: set state of channel to funded - currently we don't track state
     props[peer].funded();
   });
+function handleReject(peer, rejection) {
+  console.log("Peer " + peer + " rejected channel proposal with reason: " + rejection.reason);
+  props[peer].rejected();
+}
+
 }
 
 // JSON unmarshaler for proposals send over the wire
