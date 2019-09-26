@@ -9,10 +9,11 @@ const CLI = require('cliffy').CLI;
 let sleep = require('util').promisify(setTimeout);
 
 const CONTRACT_PATH = "../build/contracts/LedgerChannels.json";
+const DEFAULT_PORT = 6030;
 
 // globals
 let name = ''
-let port = 6030;
+let port = DEFAULT_PORT;
 let listen = "0.0.0.0";
 
 // instances
@@ -134,7 +135,7 @@ async function init() {
     config.set('port', argv.port);
     port = argv.port;
   } else {
-    port = config.get('port', 6030);
+    port = config.get('port', DEFAULT_PORT);
   }
 
   // wallet
@@ -231,15 +232,22 @@ function runCLI() {
       description: "connect to peer",
       parameters: ["peer", "url"],
       action: async (params, options) => {
-        console.log("Connecting to peer " + params.peer + " on URL " + params.url);
-        return client.connect(params.peer, params.url);
+        let url = params.url;
+        if (url.slice(0,4) !== "ws://") {
+          url = "ws://" + url;
+        }
+        if (!url.match(/:\d+$/)) {
+          url = url + ":" + DEFAULT_PORT;
+        }
+        console.log("Connecting to peer " + params.peer + " on URL " + url);
+        return client.connect(params.peer, url);
       },
     })
     .addCommand("open", {
       description: "propose to open channel",
       parameters: ["peer", "balance"],
       action: async (params, options) => {
-        console.log("Proposing channel to peer " + params.peer + " with balance  " + params.balance);
+        console.log("Proposing channel to peer " + params.peer + " with balance " + params.balance);
         let bal = utils.parseEther(params.balance);
         return client.proposeChannel(params.peer, {
           nonce: utils.bigNumberify(utils.randomBytes(32)),
