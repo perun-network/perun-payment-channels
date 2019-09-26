@@ -276,6 +276,14 @@ async function handleAccept(peer, prop) {
   let chan = Channel.fromProp(prop, 0, wallet);
   setupChannel(peer, chan);
 
+  // First setup subsciption to Open event
+  let eventOpen = contract.filters.Open(chan.id);
+  contract.once(eventOpen, () => {
+    console.log("[Open] Peer funded channel, it is open! 🎉")
+    // TODO: set state of channel to funded - currently we don't track state
+    props[peer].funded();
+  });
+
   // Proposer (we) receives accept -> counterParty has idx 1
   let tx = await contract.open(
     chan.nonce,
@@ -291,12 +299,6 @@ async function handleAccept(peer, prop) {
   console.log("open tx mined. Wait for Open event caused by funding from peer.");
 }
 
-  let eventOpen = contract.filters.Open(chan.id);
-  contract.once(eventOpen, () => {
-    console.log("[Open] Peer funded channel, it is open! 🎉")
-    // TODO: set state of channel to funded - currently we don't track state
-    props[peer].funded();
-  });
 function handleReject(peer, rejection) {
   console.log("Peer " + peer + " rejected channel proposal with reason: " + rejection.reason);
   props[peer].rejected();
