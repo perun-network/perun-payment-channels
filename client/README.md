@@ -5,7 +5,8 @@
    `npm i --global yarn`
 1. `git clone https://github.com/perun-network/perun-payment-channels.git ppc`
 2. `cd ppc/client`
-3. `yarn`
+3. `git checkout client`
+4. `yarn`
 If you already have a funded account on the ropsten testnet, get its private
 key and run the client once with
  ```
