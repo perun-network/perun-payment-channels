@@ -77,7 +77,6 @@ async function connect(peer, url) {
 
 // proposeChannel sends a channel proposal on the specified connection
 async function proposeChannel(peer, proposal) {
-  console.log("Proposing\n" + JSON.stringify(proposal));
   let conn = conns[peer];
   if (!conn) {
     warn("I don't have a connection to peer: " + peer);
@@ -87,7 +86,8 @@ async function proposeChannel(peer, proposal) {
   let bal = await wallet.getBalance();
   // Proposer always has index 0, accepter index 1
   if (bal.lt(proposal.bals[0])) {
-    warn("Insufficient funds for own proposal " + proposal);
+    warn("Insufficient funds for own proposal:\n");
+    console.log(proposal);
     return;
   }
 
@@ -134,8 +134,8 @@ async function closeChannel(peer) {
       chan.sigs[0], chan.sigs[1]
     );
   }
-  console.log("close called on channel with peer: " + peer);
-  await tx.wait();
+  console.log("close() called on channel with peer: " + peer);
+  return tx.wait();
 }
 
 function getChan(peer) {
@@ -288,7 +288,7 @@ function setupChannel(peer, chan) {
   let eventClosing = contract.filters.Closing(chan.id, chan.peer);
   contract.once(eventClosing,
     async (_id, _closer, _confirmer, _balA, _balB) => {
-      console.log("Peer tries to close channel...");
+      console.log("[Closing] Peer " + peer + " tries to close channel...");
       // I forgot to put the version number in the event, let's compare the
       // balances instead...
       let tx;
@@ -304,7 +304,7 @@ function setupChannel(peer, chan) {
         tx = await contract.confirmClose(chan.id);
       }
       await tx.wait();
-      console.log("Channel with peer " + peer + "closed.");
+      console.log("Channel with peer " + peer + " closed. 👌");
       // note: disputedClose and confirmOpen both called withdraw() already.
   });
 
@@ -331,7 +331,7 @@ async function handleUpdateReq(peer, update) {
     return;
   }
 
-  console.log("Received valid update request, state updated!\n" + chan.shortStateStr())
+  console.log("Received valid update request, state updated! 💸\n" + chan.shortStateStr())
   console.log("Sending update response with signature to peer " + peer);
   conn.sendUTF(JSON.stringify({ 'type': 'updateRes', 'data': signedUpdate }));
 }
@@ -348,7 +348,7 @@ async function handleUpdateRes(peer, update) {
   let chan = chans[update.id];
   let ok = chan.enableTransfer(update);
   if (ok) {
-    console.log("Received valid signature from peer, state updated!\n" + chan.shortStateStr());
+    console.log("Received valid signature from peer, state updated! 💸\n" + chan.shortStateStr());
   } else {
     warn("Received invalid signature from peer, state not updated!");
   }
@@ -356,10 +356,9 @@ async function handleUpdateRes(peer, update) {
 
 // JSON unmarshaler for updates send over the wire
 function ethifyUpdate(update) {
-  //update.id = utils.bigNumberify(update.id); // id is hex string
+  // id and sigs are hex strings, so ok
   update.version = utils.bigNumberify(update.version);
   update.bals = update.bals.map(x => utils.bigNumberify(x));
-  // sigs should be hex strings, so ok
 }
 
 function warn(msg) {
