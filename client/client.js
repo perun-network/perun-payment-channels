@@ -123,7 +123,21 @@ async function proposeTransfer(peer, amount) {
 
 async function closeChannel(peer) {
   console.log("Attempting to close channel with peer: " + peer);
-  let chan = getChan(peer);
+  const chan = getChan(peer);
+
+  // First setup subsciption to Closed event caused by us.
+  // If we initiated closing with close(), we still have to manually withdraw
+  // from the channel. The close confimer withdrew implicitly while calling
+  // confirmClose().
+  let eventClosed = contract.filters.Closed(chan.id, chan.we);
+  contract.once(eventClosed, async () => {
+    console.log("[Closed] Channel with peer " + peer + " closed. Withdrawing... ");
+    let tx = await contract.withdraw(chan.id);
+    await tx.wait();
+    console.log("Withdrawn. 👌")
+  })
+
+  // TODO: setup timeout close
 
   let tx;
   if (chan.version === 0) {
@@ -328,8 +342,6 @@ function setupChannel(peer, chan) {
       console.log("Channel with peer " + peer + " closed. 👌");
       // note: disputedClose and confirmOpen both called withdraw() already.
   });
-
-  // TODO: withdraw money on Closed event caused by peer
 }
 
 //// OFF-CHAIN TRANSFER HANDLERS ////
