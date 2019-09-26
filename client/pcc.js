@@ -268,8 +268,11 @@ function runCLI() {
     .addCommand("close", {
       description: "close channel with peer",
       parameters: ["peer"],
+      options: ["all"],
       action: async (params, options) => {
-        console.log("Closing channel with peer " + params.peer);
+        if (options.all) {
+          return client.closeAll();
+        }
         return client.closeChannel(params.peer);
       },
     })

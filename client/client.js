@@ -139,6 +139,10 @@ async function closeChannel(peer) {
   return tx.wait();
 }
 
+async function closeAll() {
+  return Promise.all(Object.keys(peerChans).map(closeChannel));
+}
+
 function getChan(peer) {
   let conn = conns[peer];
   if (!conn) {
@@ -389,5 +393,6 @@ module.exports = {
   proposeChannel: proposeChannel,
   proposeTransfer: proposeTransfer,
   closeChannel: closeChannel,
+  closeAll: closeAll,
   list: list
 }
