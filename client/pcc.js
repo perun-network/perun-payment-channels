@@ -149,6 +149,7 @@ async function init() {
     // generate new secret key
     wallet = ethers.Wallet.createRandom();
     config.set('sk', wallet.privateKey);
+    console.log("No secret key given, generated a new one: " + wallet.privateKey);
   }
 
   // provider
