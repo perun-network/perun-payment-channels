@@ -12,7 +12,7 @@
 If you already have a funded account on the ropsten testnet, get its private
 key and run the client once with
  ```
- ./pcc.js --cli --name <you> --sk <ropsten-key> --network ropsten --contract 0x5E479c0E53d6512432d379fb22EA2CeF39f6752b
+ ./pcc.js --cli --name <you> --sk <ropsten-secret-key> --network ropsten --contract 0x5E479c0E53d6512432d379fb22EA2CeF39f6752b
  ```
 Otherwise run the same command without the `--sk` option. The client will create
 a secret key for you and show the address that you need to fund. Use a Ropsten
