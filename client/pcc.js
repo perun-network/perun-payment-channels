@@ -262,7 +262,7 @@ function runCLI() {
       description: "make off-chain transfer to peer",
       parameters: ["peer", "amount"],
       action: (params, options) => {
-        console.log("Sending peer " + params.peer + " " + params.amount + "ETH");
+        console.log("Sending peer " + params.peer + " " + params.amount + " ETH");
         client.proposeTransfer(params.peer, utils.parseEther(params.amount));
       },
     })

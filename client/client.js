@@ -224,7 +224,7 @@ async function handleProp(peer, prop) {
   let bal = await wallet.getBalance();
   // Proposer always has index 0, accepter index 1
   if (bal.lt(prop.bals[1])) {
-    warn("Insufficient funds for peer proposal:\n");
+    warn("Insufficient funds for channel proposal from peer: " + peer);
     console.log(proposal);
     conn.sendUTF(JSON.stringify({ 'type': 'reject', 'data':
       { 'reason': 'insufficient funds' }
@@ -235,6 +235,7 @@ async function handleProp(peer, prop) {
   prop.parts[1] = wallet.address;
   // we accept all proposals in this demo...
   conn.sendUTF(JSON.stringify({ 'type': 'accept', 'data': prop }));
+  console.log("Channel proposal accepted from peer: " + peer);
 
   // setup local channel instance
   // We are accepter -> idx 1
@@ -263,10 +264,10 @@ async function handleProp(peer, prop) {
       console.log(e);
       return;
     }
-    console.log("confirmOpen called.");
+    console.log("confirmOpen() called.");
 
     await tx.wait();
-    console.log("confirmOpen tx mined. Channel is open! 🎉");
+    console.log("confirmOpen() tx mined. Channel is open! 🎉");
   });
 }
 
@@ -296,11 +297,11 @@ async function handleAccept(peer, prop) {
     chan.bals[1],
     { value: chan.bals[0] }
   )
-  console.log("open called.");
+  console.log("open() called.");
 
   // wait for tx to be mined.
   await tx.wait();
-  console.log("open tx mined. Wait for Open event caused by funding from peer.");
+  console.log("open() tx mined. Wait for Open event caused by funding from peer.");
 }
 
 function handleReject(peer, rejection) {
@@ -345,7 +346,7 @@ function setupChannel(peer, chan) {
         tx = await contract.confirmClose(chan.id);
       }
       await tx.wait();
-      console.log("Channel with peer " + peer + " closed. 👌");
+      console.log("Channel with peer " + peer + " closed and withdrawn. 👌");
       // note: disputedClose and confirmOpen both called withdraw() already.
   });
 }
