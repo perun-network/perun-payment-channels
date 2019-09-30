@@ -24,8 +24,6 @@ to be specified again. You can now just run the CLI with `./pcc.js --cli`.
 You can exit the client at any time with `Ctrl+C`.
 
 ## Tasks
-1. In handleProp(), check that the proposer sent the funds he promised by reading
-   out the event variables.
 2. turn proposeTransfer into an async function that returns a Promise that
    resolves when the signature by the peer was received.
 3. Try to cheat the other party by first sending them coins and then closing the

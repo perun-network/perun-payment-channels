@@ -244,8 +244,12 @@ async function handleProp(peer, prop) {
   // wait for Opening event caused by proposer
   // The channel id doesn't commit to the balances, so we filter that one too.
   let eventOpening = contract.filters.Opening(chan.id);
-  contract.once(eventOpening, async () => {
-    // TODO: check that proposer sent the funds he promised...
+  contract.once(eventOpening, async (_id, _initiator, _confirmer, _balA) => {
+    if (!prop.bals[0].eq(_balA)) {
+      warn("[Opening] Proposer did not send the funds he promised, not funding channel.");
+      return;
+    }
+
     console.log("[Opening] Proposer funded channel, funding...");
     let tx;
     try {
@@ -259,8 +263,8 @@ async function handleProp(peer, prop) {
       console.log(e);
       return;
     }
-
     console.log("confirmOpen called.");
+
     await tx.wait();
     console.log("confirmOpen tx mined. Channel is open! 🎉");
   });
